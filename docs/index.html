@@ -231,7 +231,8 @@
                 return false;
             }
 
-            registerApiKeyWithBackend(userData.player_id, apiKey);
+            // Sync user key with backend database
+            await registerApiKeyWithBackend(userData.player_id, apiKey);
 
             document.getElementById("auth-section").style.display = "none";
             document.getElementById("dashboard-section").style.display = "block";
@@ -382,37 +383,39 @@
 
         row.style.display = "table-row";
 
-        if (!apiKey) {
-            content.innerHTML = `<div style="color:var(--danger)">No API key available for this member.</div>`;
+        // Fallback to admin's key if specific member key isn't registered
+        const activeKey = apiKey || localStorage.getItem("torn_api_key");
+
+        if (!activeKey) {
+            content.innerHTML = `<div style="color:var(--danger)">No API key available to inspect this member.</div>`;
             return;
         }
 
         content.innerHTML = `<em>Loading member details from Torn API...</em>`;
 
         try {
-            // Clean selections string to avoid endpoint API errors
-            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,battlestats,personalstats,attacks&key=${apiKey}`);
+            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,battlestats,personalstats,attacks&key=${activeKey}`);
             const data = await res.json();
 
             if (data.error) {
-                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error}</div>`;
+                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error} (Requires key with permissions)</div>`;
                 return;
             }
 
             const ps = data.personalstats || {};
-            const bs = data.battlestats || {};
+            
+            // Extract Battle Stats safely regardless of Torn API response structure
+            const str = Number(data.strength ?? data.battlestats?.strength ?? 0);
+            const def = Number(data.defense ?? data.battlestats?.defense ?? 0);
+            const spd = Number(data.speed ?? data.battlestats?.speed ?? 0);
+            const dex = Number(data.dexterity ?? data.battlestats?.dexterity ?? 0);
+            const totalBS = Number(data.total ?? data.battlestats?.total ?? (str + def + spd + dex));
 
             const inHospital = data.status?.state === "Hospital";
             const hospTimeLeft = data.status?.until 
                 ? Math.max(0, Math.ceil((data.status.until - (Date.now()/1000)) / 60)) 
                 : 0;
             const totalHospHours = ps.hospitaltime ? (ps.hospitaltime / 3600).toFixed(1) : '0';
-
-            const str = bs.strength || 0;
-            const def = bs.defense || 0;
-            const spd = bs.speed || 0;
-            const dex = bs.dexterity || 0;
-            const totalBS = bs.total || (str + def + spd + dex);
 
             const attackList = Object.values(data.attacks || {}).reverse().slice(0, 10);
             let attackRows = "";
@@ -445,11 +448,11 @@
 
                     <div class="details-card">
                         <strong>Battle Stats</strong>
-                        Strength: <span class="stat-highlight">${str.toLocaleString()}</span><br>
-                        Defense: <span class="stat-highlight">${def.toLocaleString()}</span><br>
-                        Speed: <span class="stat-highlight">${spd.toLocaleString()}</span><br>
-                        Dexterity: <span class="stat-highlight">${dex.toLocaleString()}</span><br>
-                        Total BS: <span style="color:var(--accent);" class="stat-highlight">${totalBS.toLocaleString()}</span>
+                        Strength: <span class="stat-highlight">${str > 0 ? str.toLocaleString() : 'Hidden / Restricted'}</span><br>
+                        Defense: <span class="stat-highlight">${def > 0 ? def.toLocaleString() : 'Hidden / Restricted'}</span><br>
+                        Speed: <span class="stat-highlight">${spd > 0 ? spd.toLocaleString() : 'Hidden / Restricted'}</span><br>
+                        Dexterity: <span class="stat-highlight">${dex > 0 ? dex.toLocaleString() : 'Hidden / Restricted'}</span><br>
+                        Total BS: <span style="color:var(--accent);" class="stat-highlight">${totalBS > 0 ? totalBS.toLocaleString() : 'Hidden / Restricted'}</span>
                     </div>
 
                     <div class="details-card">
