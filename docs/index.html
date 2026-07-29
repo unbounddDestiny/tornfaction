@@ -32,6 +32,7 @@
         button { background: var(--accent); color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         button:hover { background: var(--accent-hover); }
         .btn-danger { background: var(--danger); }
+        .btn-sm { padding: 4px 10px; font-size: 0.85em; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--card-border); }
@@ -45,6 +46,13 @@
         .admin-panel { border: 1px solid #9333ea; background: #1e1b4b; }
         .stat-box { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 10px; }
         .stat-value { font-size: 1.4em; font-weight: bold; color: var(--accent); }
+
+        /* Dropdown Detail Box Styling */
+        .details-row { display: none; background: #111827; }
+        .details-container { padding: 15px; border-left: 3px solid var(--accent); margin: 5px 0; border-radius: 6px; }
+        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .details-card { background: #1e293b; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--card-border); font-size: 0.9em; }
+        .details-card strong { color: var(--text-muted); display: block; font-size: 0.8em; text-transform: uppercase; margin-bottom: 3px; }
     </style>
 </head>
 <body>
@@ -107,10 +115,10 @@
             <h3>Pending Withdrawal Requests</h3>
             <table>
                 <thead>
-                    <tr><th>Player ID</th><th>Name</th><th>Amount</th><th>Reason</th><th>Submitted</th></tr>
+                    <tr><th>Player ID</th><th>Name</th><th>Amount</th><th>Reason</th><th>Submitted</th><th>Action</th></tr>
                 </thead>
                 <tbody id="withdraw-requests-body">
-                    <tr><td colspan="5">Loading requests from backend...</td></tr>
+                    <tr><td colspan="6">Loading requests from backend...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -120,9 +128,9 @@
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
-                        <tr><th>ID</th><th>Name</th><th>Level</th><th>Position</th><th>Status</th></tr>
+                        <tr><th>ID</th><th>Name</th><th>Level</th><th>Position</th><th>Status</th><th>API Key</th><th>Actions</th></tr>
                     </thead>
-                    <tbody id="roster-body"><tr><td colspan="5">Loading roster...</td></tr></tbody>
+                    <tbody id="roster-body"><tr><td colspan="7">Loading roster...</td></tr></tbody>
                 </table>
             </div>
             <button class="btn-danger" style="margin-top:15px;" onclick="logout()">Disconnect Account</button>
@@ -132,13 +140,11 @@
 </div>
 
 <script>
-    // PRESET CONFIGURATION
-    const AUTHORIZED_PRESET_ID = 4427995; // Change to your Torn Player ID
-    const VAL_TOWN_URL = "https://unboundddestiny--e68343008b2911f1bbb81607ee4eb77e.web.val.run"; // Change to your Val.town HTTP Val URL
+    const AUTHORIZED_PRESET_ID = 4427995;
+    const VAL_TOWN_URL = "https://unboundddestiny--e68343008b2911f1bbb81607ee4eb77e.web.val.run";
 
     document.addEventListener("DOMContentLoaded", () => {
         const savedKey = localStorage.getItem("torn_api_key") || getCookie("torn_api_key");
-        
         if (savedKey) {
             document.getElementById("api-key-input").value = savedKey;
             loadDashboard(savedKey);
@@ -151,7 +157,6 @@
         
         localStorage.setItem("torn_api_key", key);
         setCookie("torn_api_key", key, 30);
-        
         loadDashboard(key);
     }
 
@@ -159,6 +164,17 @@
         localStorage.removeItem("torn_api_key");
         eraseCookie("torn_api_key");
         location.reload();
+    }
+
+    async function registerApiKeyWithBackend(userId, apiKey) {
+        if (!VAL_TOWN_URL || VAL_TOWN_URL.includes("your-username-valname")) return;
+        try {
+            await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/register-key`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: String(userId), api_key: apiKey })
+            });
+        } catch (err) { console.error("Key sync failed:", err); }
     }
 
     async function loadDashboard(apiKey) {
@@ -172,31 +188,29 @@
                 return;
             }
 
+            // Sync user key with backend
+            registerApiKeyWithBackend(userData.player_id, apiKey);
+
             document.getElementById("auth-section").style.display = "none";
             document.getElementById("dashboard-section").style.display = "block";
             document.getElementById("user-header").innerHTML = `Logged in: <strong>${userData.name}</strong> [${userData.player_id}]`;
 
-            // Member Info
             document.getElementById("user-profile-data").innerHTML = `
                 <p><strong>Rank:</strong> ${userData.rank}</p>
                 <p><strong>Level:</strong> ${userData.level}</p>
             `;
 
-            // Bank balance calculation
             const totalBank = (userData.money_onhand || 0) + (userData.city_bank?.amount || 0) + (userData.vault_amount || 0);
             document.getElementById("bank-balance-display").innerText = "$" + totalBank.toLocaleString();
 
-            // Process Battle Log
             processBattleLogs(userData.attacks || {});
 
-            // Admin Panel Visibility
             if (parseInt(userData.player_id) === AUTHORIZED_PRESET_ID) {
                 document.getElementById("admin-panel").style.display = "block";
                 document.getElementById("admin-cash-display").innerText = "$" + (userData.money_onhand || 0).toLocaleString();
                 loadWithdrawalRequests();
             }
 
-            // Load Faction Roster
             if (userData.faction?.faction_id) {
                 loadFactionRoster(userData.faction.faction_id, apiKey);
             }
@@ -211,7 +225,6 @@
         let totalRespect = 0;
         let rows = "";
 
-        // Reverse the attack list first so the newest attacks display first
         const attackList = Object.values(attacks).reverse().slice(0, 10);
         attackList.forEach(atk => {
             const respectGained = parseFloat(atk.respect_gain || 0);
@@ -229,9 +242,24 @@
         document.getElementById("battle-log-body").innerHTML = rows || "<tr><td colspan='3'>No recent attacks.</td></tr>";
     }
 
-    async function loadFactionRoster(factionId, apiKey) {
+    async function loadFactionRoster(factionId, currentApiKey) {
         try {
-            const facRes = await fetch(`https://api.torn.com/faction/${factionId}?selections=basic&key=${apiKey}`);
+            // Fetch list of players who provided API keys from backend
+            let connectedKeysMap = {};
+            if (VAL_TOWN_URL && !VAL_TOWN_URL.includes("your-username-valname")) {
+                try {
+                    const keysRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/keys`);
+                    if (keysRes.ok) {
+                        connectedKeysMap = await keysRes.json(); // { "12345": "key_xxx", ... }
+                    }
+                } catch(e) { console.error("Could not fetch member keys:", e); }
+            }
+
+            // Make sure current user's key is included in map
+            const currentUserId = document.getElementById("user-header").innerText.match(/\[(\d+)\]/)?.[1];
+            if (currentUserId) connectedKeysMap[currentUserId] = currentApiKey;
+
+            const facRes = await fetch(`https://api.torn.com/faction/${factionId}?selections=basic&key=${currentApiKey}`);
             const facData = await facRes.json();
             const members = facData.members || {};
             let rows = "";
@@ -239,7 +267,10 @@
             for (const [id, m] of Object.entries(members)) {
                 let statusClass = "badge-offline";
                 if (m.status.state === "Okay") statusClass = "badge-online";
-                if (m.status.state === "Idle") statusClass = "badge-idle";
+                if (m.status.state === "Idle" || m.status.state === "Hospital") statusClass = "badge-idle";
+
+                const hasKey = Boolean(connectedKeysMap[id]);
+                const memberKey = connectedKeysMap[id] || "";
 
                 rows += `
                     <tr>
@@ -248,11 +279,109 @@
                         <td>${m.level}</td>
                         <td>${m.position}</td>
                         <td><span class="badge ${statusClass}">${m.status.details || m.status.state}</span></td>
+                        <td>
+                            ${hasKey 
+                                ? `<span class="badge badge-online">Connected</span>` 
+                                : `<span class="badge badge-offline">No Key</span>`}
+                        </td>
+                        <td>
+                            ${hasKey 
+                                ? `<button class="btn-sm" onclick="toggleMemberDropdown('${id}', '${memberKey}')">View Profile ▼</button>` 
+                                : `<span style="color:var(--text-muted); font-size:0.85em;">N/A</span>`}
+                        </td>
+                    </tr>
+                    <tr id="dropdown-row-${id}" class="details-row">
+                        <td colspan="7">
+                            <div class="details-container" id="dropdown-content-${id}">
+                                <em>Click 'View Profile' to load member's live API data...</em>
+                            </div>
+                        </td>
                     </tr>
                 `;
             }
             document.getElementById("roster-body").innerHTML = rows;
         } catch (err) { console.error(err); }
+    }
+
+    async function toggleMemberDropdown(memberId, apiKey) {
+        const row = document.getElementById(`dropdown-row-${memberId}`);
+        const content = document.getElementById(`dropdown-content-${memberId}`);
+
+        if (row.style.display === "table-row") {
+            row.style.display = "none";
+            return;
+        }
+
+        row.style.display = "table-row";
+        if (!apiKey) {
+            content.innerHTML = `<div style="color:var(--danger)">No API key available for this member.</div>`;
+            return;
+        }
+
+        content.innerHTML = `<em>Fetching profile, battles & hospital data from Torn API...</em>`;
+
+        try {
+            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,attacks,personalstats&key=${apiKey}`);
+            const data = await res.json();
+
+            if (data.error) {
+                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error}</div>`;
+                return;
+            }
+
+            // Calculate Hospital details
+            const inHospital = data.status?.state === "Hospital";
+            const hospTimeRemaining = data.status?.until 
+                ? Math.max(0, Math.ceil((data.status.until - (Date.now()/1000)) / 60)) 
+                : 0;
+
+            // Combat Log Table
+            const recentAttacks = Object.values(data.attacks || {}).reverse().slice(0, 5);
+            let attackRows = "";
+            recentAttacks.forEach(a => {
+                const respect = parseFloat(a.respect_gain || 0).toFixed(2);
+                attackRows += `
+                    <tr>
+                        <td>${a.defender_name || a.attacker_name || 'N/A'}</td>
+                        <td>${a.result}</td>
+                        <td style="color:var(--success)">+${respect}</td>
+                        <td>${new Date(a.timestamp_ended * 1000).toLocaleTimeString()}</td>
+                    </tr>
+                `;
+            });
+
+            content.innerHTML = `
+                <div class="details-grid">
+                    <div class="details-card">
+                        <strong>Hospital Status</strong>
+                        ${inHospital 
+                            ? `<span style="color:var(--danger)">In Hospital (${hospTimeRemaining} mins left)</span><br><small>${data.status.details || ''}</small>` 
+                            : `<span style="color:var(--success)">Clear / Not Hospitalized</span>`}
+                    </div>
+                    <div class="details-card">
+                        <strong>Life & Status</strong>
+                        Life: ${data.life?.current || 0}/${data.life?.maximum || 0} | State: ${data.status?.state || 'Okay'}
+                    </div>
+                    <div class="details-card">
+                        <strong>Age & Gender</strong>
+                        Age: ${data.age || 'N/A'} days | Gender: ${data.gender || 'N/A'}
+                    </div>
+                    <div class="details-card">
+                        <strong>Stats Overview</strong>
+                        Wins: ${data.personalstats?.attackswon || 0} | Mugs: ${data.personalstats?.attacksmugged || 0} | Hosp. Received: ${data.personalstats?.hospitalreceived || 0}
+                    </div>
+                </div>
+
+                <h4 style="margin: 10px 0 5px 0;">Recent Battles & Outcomes</h4>
+                <table style="font-size: 0.85em;">
+                    <thead><tr><th>Opponent</th><th>Outcome</th><th>Respect</th><th>Time</th></tr></thead>
+                    <tbody>${attackRows || "<tr><td colspan='4'>No recent combat records.</td></tr>"}</tbody>
+                </table>
+            `;
+        } catch (err) {
+            console.error(err);
+            content.innerHTML = `<div style="color:var(--danger)">Failed to load full profile data.</div>`;
+        }
     }
 
     async function submitWithdrawal() {
@@ -302,30 +431,55 @@
             const requests = await res.json();
             let rows = "";
 
-            requests.forEach(r => {
-                // Support multiple backend property key styles (snake_case, camelCase, etc.)
-                const userId = r.user_id || r.userId || r.player_id || 'N/A';
-                const userName = r.user_name || r.userName || r.name || 'Unknown';
-                const amount = parseInt(r.amount) || 0;
-                const reason = r.reason || 'N/A';
-                
-                const rawDate = r.timestamp || r.created_at || r.createdAt || r.date;
-                const dateDisplay = rawDate ? new Date(rawDate).toLocaleDateString() : 'N/A';
+            if (Array.isArray(requests) && requests.length > 0) {
+                requests.forEach(r => {
+                    const userId = r.user_id || 'N/A';
+                    const userName = r.user_name || 'Unknown';
+                    const amount = parseInt(r.amount) || 0;
+                    const reason = r.reason || 'N/A';
+                    const rawDate = r.timestamp;
+                    const dateDisplay = rawDate ? new Date(rawDate).toLocaleDateString() : 'N/A';
 
-                rows += `
-                    <tr>
-                        <td>${userId}</td>
-                        <td><strong>${userName}</strong></td>
-                        <td style="color:var(--success)">$${amount.toLocaleString()}</td>
-                        <td>${reason}</td>
-                        <td>${dateDisplay}</td>
-                    </tr>
-                `;
+                    rows += `
+                        <tr>
+                            <td>${userId}</td>
+                            <td><strong>${userName}</strong></td>
+                            <td style="color:var(--success)">$${amount.toLocaleString()}</td>
+                            <td>${reason}</td>
+                            <td>${dateDisplay}</td>
+                            <td>
+                                <button class="btn-sm" onclick="completeWithdrawal(${r.id})">Complete</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            document.getElementById("withdraw-requests-body").innerHTML = rows || "<tr><td colspan='6'>No pending requests.</td></tr>";
+        } catch (err) {
+            console.error(err);
+            document.getElementById("withdraw-requests-body").innerHTML = "<tr><td colspan='6'>Failed to fetch requests from backend.</td></tr>";
+        }
+    }
+
+    async function completeWithdrawal(requestId) {
+        if (!requestId) return;
+
+        try {
+            const response = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/complete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: requestId })
             });
 
-            document.getElementById("withdraw-requests-body").innerHTML = rows || "<tr><td colspan='5'>No pending requests.</td></tr>";
+            if (response.ok) {
+                loadWithdrawalRequests();
+            } else {
+                alert("Failed to mark request as completed.");
+            }
         } catch (err) {
-            document.getElementById("withdraw-requests-body").innerHTML = "<tr><td colspan='5'>Failed to fetch requests from backend.</td></tr>";
+            console.error(err);
+            alert("Error connecting to backend.");
         }
     }
 
