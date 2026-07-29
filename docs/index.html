@@ -75,9 +75,9 @@
     <div id="auth-section" class="card">
         <h2>Account Login</h2>
         <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">
-            Enter a Full Access API key to access faction features and member statistics.
+            A <strong>Full Access API key</strong> is required to connect and view faction/member statistics.
         </p>
-        <input type="text" id="api-key-input" placeholder="Enter API Key">
+        <input type="text" id="api-key-input" placeholder="Enter Full Access API Key">
         <div>
             <a class="api-link" href="https://www.torn.com/preferences.php#tab=api?&step=addNewKey&title=FactionKey&type=4" target="_blank" rel="noopener">
                 Generate Full Access API Key in Torn Settings
@@ -96,7 +96,7 @@
                 <div id="user-profile-data">Loading profile...</div>
                 
                 <div class="stat-box">
-                    <div>Total Bank Balance</div>
+                    <div>Total Cash Balance</div>
                     <div id="bank-balance-display" class="stat-value">$0</div>
                 </div>
 
@@ -178,6 +178,23 @@
         elem.className = "status-msg " + (isError ? "error" : "info");
     }
 
+    async function verifyFullAccessKey(key) {
+        try {
+            const res = await fetch(`https://api.torn.com/key/?selections=info&key=${key}`);
+            const data = await res.json();
+            if (data.error) return { valid: false, message: data.error.error };
+            
+            // Torn Key Level 4 = Full Access
+            const isFullAccess = Number(data.access_level) === 4 || data.access_type === "Full Access" || data.access_type === 4;
+            if (!isFullAccess) {
+                return { valid: false, message: `Key Rejected: Access Level is level ${data.access_level} (${data.access_type || 'Limited'}). Full Access (Level 4) key is required!` };
+            }
+            return { valid: true };
+        } catch (e) {
+            return { valid: true }; // Fallback if key info endpoint is unaccessible
+        }
+    }
+
     async function saveSettings() {
         const keyInput = document.getElementById("api-key-input");
         const btn = document.getElementById("connect-btn");
@@ -189,8 +206,17 @@
         }
         
         btn.disabled = true;
-        setAuthStatus("Connecting to Torn API...");
+        setAuthStatus("Verifying API Key level...");
 
+        // Verify key is Full Access
+        const verification = await verifyFullAccessKey(key);
+        if (!verification.valid) {
+            setAuthStatus(verification.message, true);
+            btn.disabled = false;
+            return;
+        }
+
+        setAuthStatus("Connecting to Torn API...");
         localStorage.setItem("torn_api_key", key);
         setCookie("torn_api_key", key, 30);
 
@@ -217,13 +243,23 @@
                 body: JSON.stringify({ user_id: String(userId), api_key: apiKey })
             });
         } catch (err) {
-            console.error("Key sync error:", err);
+            console.warn("Key registration notice:", err);
         }
     }
 
     async function loadDashboard(apiKey) {
         try {
-            const userRes = await fetch(`https://api.torn.com/user/?selections=profile,money,attacks,battlestats&key=${apiKey}`);
+            // Check key level on initial auto-login
+            const keyCheck = await verifyFullAccessKey(apiKey);
+            if (!keyCheck.valid) {
+                setAuthStatus(keyCheck.message, true);
+                document.getElementById("auth-section").style.display = "block";
+                document.getElementById("dashboard-section").style.display = "none";
+                return false;
+            }
+
+            // Include 'bars' in user selections for energy/nerve/happy/life stats
+            const userRes = await fetch(`https://api.torn.com/user/?selections=profile,money,bars,attacks,battlestats&key=${apiKey}`);
             const userData = await userRes.json();
 
             if (userData.error) {
@@ -231,20 +267,25 @@
                 return false;
             }
 
-            // Sync user key with backend database
-            await registerApiKeyWithBackend(userData.player_id, apiKey);
+            registerApiKeyWithBackend(userData.player_id, apiKey);
 
             document.getElementById("auth-section").style.display = "none";
             document.getElementById("dashboard-section").style.display = "block";
             document.getElementById("user-header").innerHTML = `Logged in as: <strong>${userData.name}</strong> [${userData.player_id}]`;
 
+            // Energy & Bars Data
+            const energy = userData.energy ? `${userData.energy.current}/${userData.energy.maximum}` : 'N/A';
+            const nerve = userData.nerve ? `${userData.nerve.current}/${userData.nerve.maximum}` : 'N/A';
+            const happy = userData.happy ? `${userData.happy.current}/${userData.happy.maximum}` : 'N/A';
+            const life = userData.life ? `${userData.life.current}/${userData.life.maximum}` : 'N/A';
+
             document.getElementById("user-profile-data").innerHTML = `
-                <p><strong>Rank:</strong> ${userData.rank || 'N/A'}</p>
-                <p><strong>Level:</strong> ${userData.level || 'N/A'}</p>
-                <p><strong>Age:</strong> ${userData.age || 'N/A'} days</p>
+                <p><strong>Rank:</strong> ${userData.rank || 'N/A'} | <strong>Level:</strong> ${userData.level || 'N/A'}</p>
+                <p><strong>Energy:</strong> <span style="color:var(--success)">${energy}</span> | <strong>Nerve:</strong> ${nerve}</p>
+                <p><strong>Happy:</strong> ${happy} | <strong>Life:</strong> ${life}</p>
             `;
 
-            // Calculate total money directly without unexpected offsets
+            // Cash & Bank Balance
             const cashOnHand = Number(userData.money_onhand) || 0;
             const cityBank = Number(userData.city_bank?.amount) || 0;
             const vault = Number(userData.vault_amount) || 0;
@@ -270,7 +311,7 @@
 
         } catch (err) {
             console.error("Dashboard error:", err);
-            setAuthStatus("Network error while connecting.", true);
+            setAuthStatus("Network error connecting to API.", true);
             return false;
         }
     }
@@ -318,10 +359,8 @@
             if (VAL_TOWN_URL && !VAL_TOWN_URL.includes("your-username-valname")) {
                 try {
                     const keysRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/keys`);
-                    if (keysRes.ok) {
-                        connectedKeysMap = await keysRes.json();
-                    }
-                } catch(e) { console.error("Error loading keys:", e); }
+                    if (keysRes.ok) connectedKeysMap = await keysRes.json();
+                } catch(e) { console.warn("Keys fetch note:", e); }
             }
 
             const currentUserId = document.getElementById("user-header").innerText.match(/\[(\d+)\]/)?.[1];
@@ -337,8 +376,8 @@
                 if (m.status.state === "Okay") statusClass = "badge-online";
                 if (m.status.state === "Idle" || m.status.state === "Hospital") statusClass = "badge-idle";
 
-                const hasKey = Boolean(connectedKeysMap[id]);
                 const memberKey = connectedKeysMap[id] || "";
+                const hasKey = Boolean(memberKey);
 
                 rows += `
                     <tr>
@@ -372,7 +411,7 @@
         } catch (err) { console.error("Roster error:", err); }
     }
 
-    async function toggleMemberDropdown(memberId, apiKey) {
+    async function toggleMemberDropdown(memberId, memberKey) {
         const row = document.getElementById(`dropdown-row-${memberId}`);
         const content = document.getElementById(`dropdown-content-${memberId}`);
 
@@ -382,109 +421,150 @@
         }
 
         row.style.display = "table-row";
+        content.innerHTML = `<em>Loading member details...</em>`;
 
-        // Fallback to admin's key if specific member key isn't registered
-        const activeKey = apiKey || localStorage.getItem("torn_api_key");
+        const hasMemberKey = Boolean(memberKey);
+        const activeKey = hasMemberKey ? memberKey : localStorage.getItem("torn_api_key");
 
-        if (!activeKey) {
-            content.innerHTML = `<div style="color:var(--danger)">No API key available to inspect this member.</div>`;
-            return;
-        }
-
-        content.innerHTML = `<em>Loading member details from Torn API...</em>`;
+        // Request private fields (money, bars, battlestats) ONLY if member key is connected
+        const selections = hasMemberKey 
+            ? "profile,money,bars,battlestats,personalstats,attacks" 
+            : "profile,personalstats";
 
         try {
-            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,battlestats,personalstats,attacks&key=${activeKey}`);
+            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=${selections}&key=${activeKey}`);
             const data = await res.json();
 
             if (data.error) {
-                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error} (Requires key with permissions)</div>`;
+                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error}</div>`;
                 return;
             }
 
             const ps = data.personalstats || {};
-            
-            // Extract Battle Stats safely regardless of Torn API response structure
-            const str = Number(data.strength ?? data.battlestats?.strength ?? 0);
-            const def = Number(data.defense ?? data.battlestats?.defense ?? 0);
-            const spd = Number(data.speed ?? data.battlestats?.speed ?? 0);
-            const dex = Number(data.dexterity ?? data.battlestats?.dexterity ?? 0);
-            const totalBS = Number(data.total ?? data.battlestats?.total ?? (str + def + spd + dex));
 
+            // Member Cash Breakdown
+            let cashDisplay = "Hidden (Key Required)";
+            let vaultDisplay = "Hidden (Key Required)";
+            let bankDisplay = "Hidden (Key Required)";
+            let totalCashDisplay = "Hidden (Key Required)";
+
+            if (hasMemberKey) {
+                const cash = Number(data.money_onhand) || 0;
+                const bank = Number(data.city_bank?.amount) || 0;
+                const vault = Number(data.vault_amount) || 0;
+                const total = cash + bank + vault;
+
+                cashDisplay = "$" + cash.toLocaleString();
+                bankDisplay = "$" + bank.toLocaleString();
+                vaultDisplay = "$" + vault.toLocaleString();
+                totalCashDisplay = "$" + total.toLocaleString();
+            }
+
+            // Energy & Bars
+            let energyDisplay = "Hidden (Key Required)";
+            let nerveDisplay = "Hidden (Key Required)";
+            let happyDisplay = "Hidden (Key Required)";
+            let lifeDisplay = "Hidden (Key Required)";
+
+            if (hasMemberKey && data.energy) {
+                energyDisplay = `${data.energy.current}/${data.energy.maximum}`;
+                nerveDisplay = `${data.nerve?.current}/${data.nerve?.maximum}`;
+                happyDisplay = `${data.happy?.current}/${data.happy?.maximum}`;
+                lifeDisplay = `${data.life?.current}/${data.life?.maximum}`;
+            }
+
+            // Battle Stats
+            let strDisplay = "Hidden (Key Required)";
+            let defDisplay = "Hidden (Key Required)";
+            let spdDisplay = "Hidden (Key Required)";
+            let dexDisplay = "Hidden (Key Required)";
+            let totalBSDisplay = "Hidden (Key Required)";
+
+            if (hasMemberKey) {
+                const str = Number(data.strength ?? data.battlestats?.strength ?? 0);
+                const def = Number(data.defense ?? data.battlestats?.defense ?? 0);
+                const spd = Number(data.speed ?? data.battlestats?.speed ?? 0);
+                const dex = Number(data.dexterity ?? data.battlestats?.dexterity ?? 0);
+                const totalBS = Number(data.total ?? data.battlestats?.total ?? (str + def + spd + dex));
+
+                strDisplay = str > 0 ? str.toLocaleString() : 'N/A';
+                defDisplay = def > 0 ? def.toLocaleString() : 'N/A';
+                spdDisplay = spd > 0 ? spd.toLocaleString() : 'N/A';
+                dexDisplay = dex > 0 ? dex.toLocaleString() : 'N/A';
+                totalBSDisplay = totalBS > 0 ? totalBS.toLocaleString() : 'N/A';
+            }
+
+            // Hospital Status
             const inHospital = data.status?.state === "Hospital";
             const hospTimeLeft = data.status?.until 
                 ? Math.max(0, Math.ceil((data.status.until - (Date.now()/1000)) / 60)) 
                 : 0;
             const totalHospHours = ps.hospitaltime ? (ps.hospitaltime / 3600).toFixed(1) : '0';
 
-            const attackList = Object.values(data.attacks || {}).reverse().slice(0, 10);
+            // Combat Log
             let attackRows = "";
-            attackList.forEach(a => {
-                const isWinner = a.result.includes("Won") || a.result.includes("Hospitalized") || a.result.includes("Mugged") || a.result.includes("Arrested");
-                const resultColor = isWinner ? "var(--success)" : "var(--danger)";
-                attackRows += `
-                    <tr>
-                        <td>${a.defender_name || a.attacker_name || 'N/A'} [${a.defender_id || a.attacker_id || ''}]</td>
-                        <td style="color:${resultColor}">${a.result}</td>
-                        <td style="color:var(--success)">+${parseFloat(a.respect_gain || 0).toFixed(2)}</td>
-                        <td>${a.modifiers?.fair_fight ? a.modifiers.fair_fight + 'x' : '1.0x'}</td>
-                        <td>${new Date(a.timestamp_ended * 1000).toLocaleString()}</td>
-                    </tr>
-                `;
-            });
+            if (hasMemberKey && data.attacks) {
+                const attackList = Object.values(data.attacks).reverse().slice(0, 10);
+                attackList.forEach(a => {
+                    const isWinner = a.result.includes("Won") || a.result.includes("Hospitalized") || a.result.includes("Mugged") || a.result.includes("Arrested");
+                    const resultColor = isWinner ? "var(--success)" : "var(--danger)";
+                    attackRows += `
+                        <tr>
+                            <td>${a.defender_name || a.attacker_name || 'N/A'} [${a.defender_id || a.attacker_id || ''}]</td>
+                            <td style="color:${resultColor}">${a.result}</td>
+                            <td style="color:var(--success)">+${parseFloat(a.respect_gain || 0).toFixed(2)}</td>
+                            <td>${a.modifiers?.fair_fight ? a.modifiers.fair_fight + 'x' : '1.0x'}</td>
+                            <td>${new Date(a.timestamp_ended * 1000).toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                attackRows = "<tr><td colspan='5' style='color:var(--text-muted)'>Combat logs hidden. Member has not connected an API key.</td></tr>";
+            }
 
             content.innerHTML = `
                 <h4 style="color:var(--accent);">Member Overview: ${data.name} [${data.player_id}]</h4>
                 
                 <div class="details-grid">
                     <div class="details-card">
+                        <strong>Member Cash Balance</strong>
+                        Cash On Hand: <span class="stat-highlight">${cashDisplay}</span><br>
+                        City Bank: <span class="stat-highlight">${bankDisplay}</span><br>
+                        Vault Balance: <span class="stat-highlight">${vaultDisplay}</span><br>
+                        Total Balance: <span style="color:var(--success);" class="stat-highlight">${totalCashDisplay}</span>
+                    </div>
+
+                    <div class="details-card">
+                        <strong>Energy & Status Bars</strong>
+                        Energy: <span style="color:var(--success);" class="stat-highlight">${energyDisplay}</span><br>
+                        Nerve: <span class="stat-highlight">${nerveDisplay}</span><br>
+                        Happy: <span class="stat-highlight">${happyDisplay}</span><br>
+                        Life: <span class="stat-highlight">${lifeDisplay}</span>
+                    </div>
+
+                    <div class="details-card">
                         <strong>Hospital Status</strong>
                         ${inHospital 
                             ? `<span style="color:var(--danger); font-weight:bold;">In Hospital (${hospTimeLeft} mins remaining)</span><br><small>${data.status.details || ''}</small>` 
                             : `<span style="color:var(--success); font-weight:bold;">Clear / Active</span>`}<br>
-                        Total Hospital Time: <span class="stat-highlight">${totalHospHours} hours</span><br>
-                        Hospitalized Received: <span class="stat-highlight">${ps.hospitalreceived || 0}</span> | Given: <span class="stat-highlight">${ps.hospitalgiven || 0}</span>
+                        Total Lifetime Hosp Time: <span class="stat-highlight">${totalHospHours} hours</span><br>
+                        Hosp Received: <span class="stat-highlight">${ps.hospitalreceived || 0}</span> | Given: <span class="stat-highlight">${ps.hospitalgiven || 0}</span>
                     </div>
 
                     <div class="details-card">
                         <strong>Battle Stats</strong>
-                        Strength: <span class="stat-highlight">${str > 0 ? str.toLocaleString() : 'Hidden / Restricted'}</span><br>
-                        Defense: <span class="stat-highlight">${def > 0 ? def.toLocaleString() : 'Hidden / Restricted'}</span><br>
-                        Speed: <span class="stat-highlight">${spd > 0 ? spd.toLocaleString() : 'Hidden / Restricted'}</span><br>
-                        Dexterity: <span class="stat-highlight">${dex > 0 ? dex.toLocaleString() : 'Hidden / Restricted'}</span><br>
-                        Total BS: <span style="color:var(--accent);" class="stat-highlight">${totalBS > 0 ? totalBS.toLocaleString() : 'Hidden / Restricted'}</span>
+                        Strength: <span class="stat-highlight">${strDisplay}</span><br>
+                        Defense: <span class="stat-highlight">${defDisplay}</span><br>
+                        Speed: <span class="stat-highlight">${spdDisplay}</span><br>
+                        Dexterity: <span class="stat-highlight">${dexDisplay}</span><br>
+                        Total BS: <span style="color:var(--accent);" class="stat-highlight">${totalBSDisplay}</span>
                     </div>
 
                     <div class="details-card">
-                        <strong>Combat Stats & Losses</strong>
-                        Attacks Won: <span class="stat-highlight">${ps.attackswon || 0}</span><br>
-                        Attacks Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.attackslost || ps.attacks_lost || 0}</span><br>
-                        Defends Won: <span class="stat-highlight">${ps.defendswon || 0}</span> | Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.defendslost || 0}</span><br>
-                        Escapes: <span class="stat-highlight">${ps.escapes || 0}</span> | Best Mug: <span class="stat-highlight">$${(ps.bestmug || 0).toLocaleString()}</span>
-                    </div>
-
-                    <div class="details-card">
-                        <strong>Life & Energy Bars</strong>
-                        Life: <span class="stat-highlight">${data.life?.current || 0} / ${data.life?.maximum || 0}</span><br>
-                        Energy: <span class="stat-highlight">${data.energy?.current || 0} / ${data.energy?.maximum || 0}</span><br>
-                        Nerve: <span class="stat-highlight">${data.nerve?.current || 0} / ${data.nerve?.maximum || 0}</span><br>
-                        Happy: <span class="stat-highlight">${data.happy?.current || 0} / ${data.happy?.maximum || 0}</span>
-                    </div>
-
-                    <div class="details-card">
-                        <strong>Medical & Rehab Stats</strong>
-                        Xanax Taken: <span class="stat-highlight">${ps.xantaken || 0}</span><br>
-                        Overdoses: <span style="color:var(--warning);" class="stat-highlight">${ps.overdosed || 0}</span><br>
-                        Rehabs: <span class="stat-highlight">${ps.rehabs || 0}</span><br>
-                        Medical Items Used: <span class="stat-highlight">${ps.medicalitemsused || 0}</span>
-                    </div>
-
-                    <div class="details-card">
-                        <strong>General Stats</strong>
-                        Rank: <span class="stat-highlight">${data.rank || 'N/A'}</span><br>
-                        Age: <span class="stat-highlight">${data.age || 'N/A'} days</span><br>
-                        Gender: <span class="stat-highlight">${data.gender || 'N/A'}</span><br>
-                        Property: <span class="stat-highlight">${data.property || 'N/A'}</span>
+                        <strong>Combat & Medical</strong>
+                        Attacks Won: <span class="stat-highlight">${ps.attackswon || 0}</span> | Lost: <span style="color:var(--danger);">${ps.attackslost || ps.attacks_lost || 0}</span><br>
+                        Defends Won: <span class="stat-highlight">${ps.defendswon || 0}</span> | Lost: <span style="color:var(--danger);">${ps.defendslost || 0}</span><br>
+                        Xanax Taken: <span class="stat-highlight">${ps.xantaken || 0}</span> | Overdoses: <span style="color:var(--warning);">${ps.overdosed || 0}</span>
                     </div>
                 </div>
 
@@ -492,7 +572,7 @@
                 <div style="max-height: 220px; overflow-y: auto;">
                     <table style="font-size: 0.85em;">
                         <thead><tr><th>Opponent</th><th>Outcome</th><th>Respect</th><th>Fair Fight</th><th>Timestamp</th></tr></thead>
-                        <tbody>${attackRows || "<tr><td colspan='5'>No recent combat records found.</td></tr>"}</tbody>
+                        <tbody>${attackRows}</tbody>
                     </table>
                 </div>
             `;
@@ -518,9 +598,7 @@
             const userRes = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}`);
             const user = await userRes.json();
 
-            if (user.error) {
-                return alert("API Request Failed: " + user.error.error);
-            }
+            if (user.error) return alert("API Request Failed: " + user.error.error);
 
             const response = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/request`, {
                 method: "POST",
@@ -538,7 +616,8 @@
                 document.getElementById("withdraw-amount").value = "";
                 document.getElementById("withdraw-reason").value = "";
             } else {
-                alert("Failed to submit request.");
+                const errData = await response.json().catch(() => ({}));
+                alert("Failed to submit request: " + (errData.error || "Server error"));
             }
         } catch (err) {
             console.error("Withdrawal error:", err);
@@ -595,18 +674,14 @@
                 body: JSON.stringify({ id: requestId })
             });
 
-            if (response.ok) {
-                loadWithdrawalRequests();
-            } else {
-                alert("Failed to update status on server.");
-            }
+            if (response.ok) loadWithdrawalRequests();
+            else alert("Failed to update status on server.");
         } catch (err) {
             console.error("Completion error:", err);
             alert("Error updating request status.");
         }
     }
 
-    // Cookie utilities
     function setCookie(n, v, d) { const e = new Date(); e.setTime(e.getTime() + (d*86400000)); document.cookie = `${n}=${v};expires=${e.toUTCString()};path=/;SameSite=Strict`; }
     function getCookie(n) { const m = document.cookie.match(new RegExp('(^| )' + n + '=([^;]+)')); return m ? m[2] : null; }
     function eraseCookie(n) { document.cookie = `${n}=;Max-Age=-99999999;path=/;`; }
