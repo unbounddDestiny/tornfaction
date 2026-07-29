@@ -211,14 +211,15 @@
         let totalRespect = 0;
         let rows = "";
 
-        const attackList = Object.values(attacks).slice(0, 10);
+        // Reverse the attack list first so the newest attacks display first
+        const attackList = Object.values(attacks).reverse().slice(0, 10);
         attackList.forEach(atk => {
             const respectGained = parseFloat(atk.respect_gain || 0);
             totalRespect += respectGained;
             rows += `
                 <tr>
                     <td>${atk.defender_name || 'N/A'}</td>
-                    <td>${atk.result}</td>
+                    <td>${atk.result || 'N/A'}</td>
                     <td style="color:var(--success)">+${respectGained.toFixed(2)}</td>
                 </tr>
             `;
@@ -302,13 +303,22 @@
             let rows = "";
 
             requests.forEach(r => {
+                // Support multiple backend property key styles (snake_case, camelCase, etc.)
+                const userId = r.user_id || r.userId || r.player_id || 'N/A';
+                const userName = r.user_name || r.userName || r.name || 'Unknown';
+                const amount = parseInt(r.amount) || 0;
+                const reason = r.reason || 'N/A';
+                
+                const rawDate = r.timestamp || r.created_at || r.createdAt || r.date;
+                const dateDisplay = rawDate ? new Date(rawDate).toLocaleDateString() : 'N/A';
+
                 rows += `
                     <tr>
-                        <td>${r.user_id}</td>
-                        <td><strong>${r.user_name}</strong></td>
-                        <td style="color:var(--success)">$${parseInt(r.amount).toLocaleString()}</td>
-                        <td>${r.reason || 'N/A'}</td>
-                        <td>${new Date(r.timestamp).toLocaleDateString()}</td>
+                        <td>${userId}</td>
+                        <td><strong>${userName}</strong></td>
+                        <td style="color:var(--success)">$${amount.toLocaleString()}</td>
+                        <td>${reason}</td>
+                        <td>${dateDisplay}</td>
                     </tr>
                 `;
             });
