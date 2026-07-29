@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torn Faction Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent-color: #db2777;
+            --text-color: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border-color: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1, h2, h3 {
+            margin: 0 0 10px 0;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: #2a2a2a;
+            color: #fff;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-danger {
+            background-color: #dc2626;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #2a2a2a;
+        }
+
+        .sensitive-box {
+            background-color: #261212;
+            border: 1px solid #7f1d1d;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .status-online { color: #22c55e; }
+        .status-offline { color: #ef4444; }
+        .status-idle { color: #f59e0b; }
+        
+        .trust-notice {
+            font-size: 0.9em;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>⚔️ Faction Dashboard</h1>
+        <div id="user-summary">Not Authenticated</div>
+    </header>
+
+    <div id="auth-section" class="card">
+        <h2>API Key Authentication</h2>
+        <p class="trust-notice">Enter your Torn API key to access faction features. Your key is stored locally in your browser cookies/localStorage and is never sent to any third-party server.</p>
+        <input type="text" id="api-key-input" placeholder="Enter Limited or Full Access API Key">
+        <button onclick="saveApiKey()">Save Key & Login</button>
+    </div>
+
+    <div id="dashboard-section" style="display: none;">
+        
+        <div class="grid">
+            <div class="card">
+                <h2>Your Profile</h2>
+                <div id="profile-data">Loading...</div>
+                
+                <div id="cash-display" class="sensitive-box" style="display: none;">
+                    <h3>💰 Restricted Data: Cash On Hand</h3>
+                    <p id="cash-amount">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🔒 API Keys & Security</h2>
+                <div class="trust-notice">
+                    <p><strong>Why do we need your API Key?</strong><br>
+                    This dashboard interacts directly with Torn's official API to load your stats and active faction rosters in real time.</p>
+
+                    <p><strong>Limited vs. Full Access Keys:</strong></p>
+                    <ul>
+                        <li><strong>Limited Access:</strong> Recommended for daily dashboard use. Allows reading basic stats and faction info safely.</li>
+                        <li><strong>Full Access:</strong> Required only if accessing restricted private data or managing faction administration.</li>
+                    </ul>
+
+                    <p><strong>Trust Notice:</strong> Since this site is hosted statically on GitHub Pages, no server stores your key. You can inspect the source code anytime to verify privacy.</p>
+                </div>
+                <button class="btn-danger" onclick="logout()">Clear Saved Key</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Faction Roster</h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Level</th>
+                            <th>Position</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="faction-members-body">
+                        <tr><td colspan="5">Loading roster...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // PRESET AUTHORIZED PLAYER ID FOR SENSITIVE CASH VIEWING
+    // Change this to your Torn Player ID
+    const AUTHORIZED_PRESET_ID = 1234567; 
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const savedKey = getCookie("torn_api_key") || localStorage.getItem("torn_api_key");
+        if (savedKey) {
+            document.getElementById("api-key-input").value = savedKey;
+            loadDashboard(savedKey);
+        }
+    });
+
+    function saveApiKey() {
+        const key = document.getElementById("api-key-input").value.trim();
+        if (!key) {
+            alert("Please enter a valid API key.");
+            return;
+        }
+        // Save to both cookie (30 days) and localStorage
+        setCookie("torn_api_key", key, 30);
+        localStorage.setItem("torn_api_key", key);
+        loadDashboard(key);
+    }
+
+    function logout() {
+        eraseCookie("torn_api_key");
+        localStorage.removeItem("torn_api_key");
+        location.reload();
+    }
+
+    async function loadDashboard(apiKey) {
+        try {
+            // 1. Fetch Current User Profile
+            const userResponse = await fetch(`https://api.torn.com/user/?selections=profile,money&key=${apiKey}`);
+            const userData = await userResponse.json();
+
+            if (userData.error) {
+                alert("API Error: " + userData.error.error);
+                logout();
+                return;
+            }
+
+            // Hide Auth Section, Show Dashboard
+            document.getElementById("auth-section").style.display = "none";
+            document.getElementById("dashboard-section").style.display = "block";
+
+            // Update Header & Profile
+            document.getElementById("user-summary").innerHTML = `Logged in as <strong>${userData.name}</strong> [${userData.player_id}]`;
+            document.getElementById("profile-data").innerHTML = `
+                <p><strong>Level:</strong> ${userData.level}</p>
+                <p><strong>Rank:</strong> ${userData.rank}</p>
+                <p><strong>Faction:</strong> ${userData.faction.faction_name || "None"}</p>
+            `;
+
+            // PRESET ID CHECK FOR SENSITIVE CASH ON HAND
+            if (parseInt(userData.player_id) === AUTHORIZED_PRESET_ID) {
+                document.getElementById("cash-display").style.display = "block";
+                document.getElementById("cash-amount").innerText = "$" + userData.money_onhand.toLocaleString();
+            } else {
+                document.getElementById("cash-display").style.display = "none";
+            }
+
+            // 2. Fetch Faction Data if user is in a faction
+            if (userData.faction.faction_id) {
+                fetchFactionData(userData.faction.faction_id, apiKey);
+            } else {
+                document.getElementById("faction-members-body").innerHTML = `<tr><td colspan="5">You are not currently in a faction.</td></tr>`;
+            }
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to connect to Torn API.");
+        }
+    }
+
+    async function fetchFactionData(factionId, apiKey) {
+        try {
+            const factionResponse = await fetch(`https://api.torn.com/faction/${factionId}?selections=basic&key=${apiKey}`);
+            const factionData = await factionResponse.json();
+
+            if (factionData.error) {
+                document.getElementById("faction-members-body").innerHTML = `<tr><td colspan="5">Error loading faction data.</td></tr>`;
+                return;
+            }
+
+            const members = factionData.members || {};
+            let rowsHtml = "";
+
+            for (const [id, member] of Object.entries(members)) {
+                let statusClass = "status-offline";
+                if (member.status.state === "Okay") statusClass = "status-online";
+                if (member.status.state === "Idle") statusClass = "status-idle";
+
+                rowsHtml += `
+                    <tr>
+                        <td>${id}</td>
+                        <td><strong>${member.name}</strong></td>
+                        <td>${member.level}</td>
+                        <td>${member.position}</td>
+                        <td class="${statusClass}">${member.status.details || member.status.state}</td>
+                    </tr>
+                `;
+            }
+
+            document.getElementById("faction-members-body").innerHTML = rowsHtml;
+
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // Helper functions for Cookie management
+    function setCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Strict";
+    }
+
+    function getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    function eraseCookie(name) {
+        document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
+</script>
+
+</body>
+</html>
