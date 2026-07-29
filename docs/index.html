@@ -20,23 +20,26 @@
 
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+        .container { max-width: 1200px; margin: 0 auto; }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 15px; margin-bottom: 20px; }
-        h1, h2, h3 { margin: 0 0 10px 0; font-weight: 700; }
+        h1, h2, h3, h4 { margin: 0 0 10px 0; font-weight: 700; }
         
         .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
         
-        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--card-border); background: #0f172a; color: #fff; margin-bottom: 12px; }
+        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--card-border); background: #0f172a; color: #fff; margin-bottom: 8px; }
         button { background: var(--accent); color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         button:hover { background: var(--accent-hover); }
         .btn-danger { background: var(--danger); }
-        .btn-sm { padding: 4px 10px; font-size: 0.85em; }
+        .btn-sm { padding: 5px 12px; font-size: 0.85em; }
+
+        .api-link { font-size: 0.85em; color: var(--accent); text-decoration: underline; display: inline-block; margin-top: 4px; }
+        .api-link:hover { color: var(--accent-hover); }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--card-border); }
-        th { background: #0f172a; color: var(--text-muted); font-size: 0.85em; text-transform: uppercase; }
+        th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--card-border); }
+        th { background: #0f172a; color: var(--text-muted); font-size: 0.8em; text-transform: uppercase; }
 
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .badge-online { background: rgba(34, 197, 94, 0.2); color: var(--success); }
@@ -45,14 +48,15 @@
 
         .admin-panel { border: 1px solid #9333ea; background: #1e1b4b; }
         .stat-box { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 10px; }
-        .stat-value { font-size: 1.4em; font-weight: bold; color: var(--accent); }
+        .stat-value { font-size: 1.5em; font-weight: bold; color: var(--accent); }
 
         /* Dropdown Detail Box Styling */
-        .details-row { display: none; background: #111827; }
-        .details-container { padding: 15px; border-left: 3px solid var(--accent); margin: 5px 0; border-radius: 6px; }
-        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px; }
-        .details-card { background: #1e293b; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--card-border); font-size: 0.9em; }
-        .details-card strong { color: var(--text-muted); display: block; font-size: 0.8em; text-transform: uppercase; margin-bottom: 3px; }
+        .details-row { display: none; background: #090d16; }
+        .details-container { padding: 18px; border-left: 4px solid var(--accent); margin: 8px 0; border-radius: 6px; }
+        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .details-card { background: #1e293b; padding: 12px; border-radius: 6px; border: 1px solid var(--card-border); font-size: 0.88em; }
+        .details-card strong { color: var(--text-muted); display: block; font-size: 0.75em; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+        .stat-highlight { font-size: 1.1em; font-weight: bold; color: #fff; }
     </style>
 </head>
 <body>
@@ -65,7 +69,11 @@
 
     <div id="auth-section" class="card">
         <h2>Connect Account</h2>
-        <input type="text" id="api-key-input" placeholder="Torn API Key (Limited or Full)">
+        <input type="text" id="api-key-input" placeholder="Enter Full Access Torn API Key">
+        <a class="api-link" href="https://www.torn.com/preferences.php#tab=api?step=generate&title=FactionSite&type=3" target="_blank" rel="noopener">
+            🔑 Click here to automatically generate a Full Access API Key
+        </a>
+        <br><br>
         <button onclick="saveSettings()">Save & Connect</button>
     </div>
 
@@ -88,13 +96,14 @@
             </div>
 
             <div class="card">
-                <h2>Respect & Battle Stats</h2>
+                <h2>Respect Accumulator & Combat Log</h2>
                 <div class="stat-box">
-                    <div>Total Respect Contributed (Recent Attacks)</div>
+                    <div>Lifetime Tracked Respect Contributed</div>
                     <div id="total-respect-display" class="stat-value">0.00</div>
+                    <small style="color:var(--text-muted);">*Additive score: Never decreases when old battle logs expire.</small>
                 </div>
                 <h3>Recent Combat Log</h3>
-                <div style="max-height: 180px; overflow-y: auto;">
+                <div style="max-height: 200px; overflow-y: auto;">
                     <table>
                         <thead><tr><th>Target</th><th>Result</th><th>Respect</th></tr></thead>
                         <tbody id="battle-log-body"><tr><td colspan="3">Loading attacks...</td></tr></tbody>
@@ -104,7 +113,7 @@
         </div>
 
         <div id="admin-panel" class="card admin-panel" style="display: none;">
-            <h2>Admin Control Panel (Restricted View)</h2>
+            <h2>Admin Control Panel (Authorized Preset Account)</h2>
             <div class="grid">
                 <div class="stat-box">
                     <div>Admin Cash on Hand</div>
@@ -153,7 +162,7 @@
 
     function saveSettings() {
         const key = document.getElementById("api-key-input").value.trim();
-        if (!key) return alert("API Key is required.");
+        if (!key) return alert("A Full Access API Key is required.");
         
         localStorage.setItem("torn_api_key", key);
         setCookie("torn_api_key", key, 30);
@@ -179,11 +188,11 @@
 
     async function loadDashboard(apiKey) {
         try {
-            const userRes = await fetch(`https://api.torn.com/user/?selections=profile,money,attacks&key=${apiKey}`);
+            const userRes = await fetch(`https://api.torn.com/user/?selections=profile,money,attacks,battlestats&key=${apiKey}`);
             const userData = await userRes.json();
 
             if (userData.error) {
-                alert("API Error: " + userData.error.error);
+                alert("API Error: " + userData.error.error + "\nEnsure you are using a Full Access API Key.");
                 logout();
                 return;
             }
@@ -196,66 +205,86 @@
             document.getElementById("user-header").innerHTML = `Logged in: <strong>${userData.name}</strong> [${userData.player_id}]`;
 
             document.getElementById("user-profile-data").innerHTML = `
-                <p><strong>Rank:</strong> ${userData.rank}</p>
-                <p><strong>Level:</strong> ${userData.level}</p>
+                <p><strong>Rank:</strong> ${userData.rank || 'N/A'}</p>
+                <p><strong>Level:</strong> ${userData.level || 'N/A'}</p>
+                <p><strong>Age:</strong> ${userData.age || 'N/A'} days</p>
             `;
 
             const totalBank = (userData.money_onhand || 0) + (userData.city_bank?.amount || 0) + (userData.vault_amount || 0);
             document.getElementById("bank-balance-display").innerText = "$" + totalBank.toLocaleString();
 
-            processBattleLogs(userData.attacks || {});
+            // Additive respect log calculation
+            processBattleLogs(userData.player_id, userData.attacks || {});
 
-            if (parseInt(userData.player_id) === AUTHORIZED_PRESET_ID) {
+            const isPresetAdmin = parseInt(userData.player_id) === AUTHORIZED_PRESET_ID;
+
+            if (isPresetAdmin) {
                 document.getElementById("admin-panel").style.display = "block";
                 document.getElementById("admin-cash-display").innerText = "$" + (userData.money_onhand || 0).toLocaleString();
                 loadWithdrawalRequests();
             }
 
             if (userData.faction?.faction_id) {
-                loadFactionRoster(userData.faction.faction_id, apiKey);
+                loadFactionRoster(userData.faction.faction_id, apiKey, isPresetAdmin);
             }
 
         } catch (err) {
             console.error(err);
-            alert("Error loading dashboard data.");
+            alert("Error loading dashboard data. Please check your API key permissions.");
         }
     }
 
-    function processBattleLogs(attacks) {
-        let totalRespect = 0;
-        let rows = "";
+    function processBattleLogs(userId, attacks) {
+        const storageKeyProcessed = `processed_attacks_${userId}`;
+        const storageKeyTotalRespect = `total_accumulated_respect_${userId}`;
 
-        const attackList = Object.values(attacks).reverse().slice(0, 10);
-        attackList.forEach(atk => {
+        let processedSet = new Set(JSON.parse(localStorage.getItem(storageKeyProcessed) || "[]"));
+        let accumulatedRespect = parseFloat(localStorage.getItem(storageKeyTotalRespect) || "0");
+
+        let rows = "";
+        const attackList = Object.values(attacks).reverse();
+
+        attackList.forEach((atk, idx) => {
+            const attackId = atk.code || `${atk.timestamp_ended}_${atk.defender_id}`;
             const respectGained = parseFloat(atk.respect_gain || 0);
-            totalRespect += respectGained;
-            rows += `
-                <tr>
-                    <td>${atk.defender_name || 'N/A'}</td>
-                    <td>${atk.result || 'N/A'}</td>
-                    <td style="color:var(--success)">+${respectGained.toFixed(2)}</td>
-                </tr>
-            `;
+
+            // Add new respect to running cumulative score if never seen before
+            if (!processedSet.has(attackId)) {
+                accumulatedRespect += respectGained;
+                processedSet.add(attackId);
+            }
+
+            if (idx < 10) {
+                rows += `
+                    <tr>
+                        <td>${atk.defender_name || atk.attacker_name || 'N/A'}</td>
+                        <td>${atk.result}</td>
+                        <td style="color:var(--success)">+${respectGained.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
         });
 
-        document.getElementById("total-respect-display").innerText = totalRespect.toFixed(2);
+        // Save progress permanently
+        localStorage.setItem(storageKeyProcessed, JSON.stringify(Array.from(processedSet)));
+        localStorage.setItem(storageKeyTotalRespect, accumulatedRespect.toString());
+
+        document.getElementById("total-respect-display").innerText = accumulatedRespect.toFixed(2);
         document.getElementById("battle-log-body").innerHTML = rows || "<tr><td colspan='3'>No recent attacks.</td></tr>";
     }
 
-    async function loadFactionRoster(factionId, currentApiKey) {
+    async function loadFactionRoster(factionId, currentApiKey, isPresetAdmin) {
         try {
-            // Fetch list of players who provided API keys from backend
             let connectedKeysMap = {};
             if (VAL_TOWN_URL && !VAL_TOWN_URL.includes("your-username-valname")) {
                 try {
                     const keysRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/keys`);
                     if (keysRes.ok) {
-                        connectedKeysMap = await keysRes.json(); // { "12345": "key_xxx", ... }
+                        connectedKeysMap = await keysRes.json();
                     }
                 } catch(e) { console.error("Could not fetch member keys:", e); }
             }
 
-            // Make sure current user's key is included in map
             const currentUserId = document.getElementById("user-header").innerText.match(/\[(\d+)\]/)?.[1];
             if (currentUserId) connectedKeysMap[currentUserId] = currentApiKey;
 
@@ -285,18 +314,19 @@
                                 : `<span class="badge badge-offline">No Key</span>`}
                         </td>
                         <td>
-                            ${hasKey 
-                                ? `<button class="btn-sm" onclick="toggleMemberDropdown('${id}', '${memberKey}')">View Profile ▼</button>` 
-                                : `<span style="color:var(--text-muted); font-size:0.85em;">N/A</span>`}
+                            ${isPresetAdmin 
+                                ? `<button class="btn-sm" onclick="toggleMemberDropdown('${id}', '${memberKey}')">Inspect Profile ▼</button>` 
+                                : `<span style="color:var(--text-muted); font-size:0.8em;">Restricted</span>`}
                         </td>
                     </tr>
+                    ${isPresetAdmin ? `
                     <tr id="dropdown-row-${id}" class="details-row">
                         <td colspan="7">
                             <div class="details-container" id="dropdown-content-${id}">
-                                <em>Click 'View Profile' to load member's live API data...</em>
+                                <em>Click 'Inspect Profile' to load complete stats & logs...</em>
                             </div>
                         </td>
-                    </tr>
+                    </tr>` : ''}
                 `;
             }
             document.getElementById("roster-body").innerHTML = rows;
@@ -313,74 +343,123 @@
         }
 
         row.style.display = "table-row";
+
         if (!apiKey) {
-            content.innerHTML = `<div style="color:var(--danger)">No API key available for this member.</div>`;
+            content.innerHTML = `<div style="color:var(--danger)">No full access API key saved for this member yet.</div>`;
             return;
         }
 
-        content.innerHTML = `<em>Fetching profile, battles & hospital data from Torn API...</em>`;
+        content.innerHTML = `<em>Querying all endpoints (profile, battlestats, personalstats, attacks)...</em>`;
 
         try {
-            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,attacks,personalstats&key=${apiKey}`);
+            const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,battlestats,personalstats,attacks,crimes,bounties&key=${apiKey}`);
             const data = await res.json();
 
             if (data.error) {
-                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error}</div>`;
+                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error} (Requires Full Access Key)</div>`;
                 return;
             }
 
-            // Calculate Hospital details
+            const ps = data.personalstats || {};
+            const bs = data.battlestats || {};
+
+            // Hospital Details
             const inHospital = data.status?.state === "Hospital";
-            const hospTimeRemaining = data.status?.until 
+            const hospTimeLeft = data.status?.until 
                 ? Math.max(0, Math.ceil((data.status.until - (Date.now()/1000)) / 60)) 
                 : 0;
+            const totalHospTimeHours = ps.useractivity ? (ps.hospitaltime / 3600).toFixed(1) : ((ps.hospitaltime || 0) / 3600).toFixed(1);
 
-            // Combat Log Table
-            const recentAttacks = Object.values(data.attacks || {}).reverse().slice(0, 5);
+            // Battle Stats Calculations
+            const str = bs.strength || 0;
+            const def = bs.defense || 0;
+            const spd = bs.speed || 0;
+            const dex = bs.dexterity || 0;
+            const totalBS = bs.total || (str + def + spd + dex);
+
+            // Recent Attacks Table
+            const attackList = Object.values(data.attacks || {}).reverse().slice(0, 10);
             let attackRows = "";
-            recentAttacks.forEach(a => {
-                const respect = parseFloat(a.respect_gain || 0).toFixed(2);
+            attackList.forEach(a => {
+                const isWinner = a.result.includes("Won") || a.result.includes("Hospitalized") || a.result.includes("Mugged") || a.result.includes("Arrested");
+                const resultColor = isWinner ? "var(--success)" : "var(--danger)";
                 attackRows += `
                     <tr>
-                        <td>${a.defender_name || a.attacker_name || 'N/A'}</td>
-                        <td>${a.result}</td>
-                        <td style="color:var(--success)">+${respect}</td>
-                        <td>${new Date(a.timestamp_ended * 1000).toLocaleTimeString()}</td>
+                        <td>${a.defender_name || a.attacker_name || 'N/A'} [${a.defender_id || a.attacker_id || ''}]</td>
+                        <td style="color:${resultColor}">${a.result}</td>
+                        <td style="color:var(--success)">+${parseFloat(a.respect_gain || 0).toFixed(2)}</td>
+                        <td>${a.modifiers?.fair_fight ? a.modifiers.fair_fight + 'x' : '1.0x'}</td>
+                        <td>${new Date(a.timestamp_ended * 1000).toLocaleString()}</td>
                     </tr>
                 `;
             });
 
             content.innerHTML = `
+                <h4 style="color:var(--accent);">Member Deep-Dive: ${data.name} [${data.player_id}]</h4>
+                
                 <div class="details-grid">
                     <div class="details-card">
-                        <strong>Hospital Status</strong>
+                        <strong>Hospitalization Status</strong>
                         ${inHospital 
-                            ? `<span style="color:var(--danger)">In Hospital (${hospTimeRemaining} mins left)</span><br><small>${data.status.details || ''}</small>` 
-                            : `<span style="color:var(--success)">Clear / Not Hospitalized</span>`}
+                            ? `<span style="color:var(--danger); font-weight:bold;">IN HOSPITAL (${hospTimeLeft} mins left)</span><br><small>${data.status.details || ''}</small>` 
+                            : `<span style="color:var(--success); font-weight:bold;">Clear / Active</span>`}<br>
+                        Total Lifetime Hosp Time: <span class="stat-highlight">${totalHospTimeHours} hrs</span><br>
+                        Hosp Received: <span class="stat-highlight">${ps.hospitalreceived || 0}</span> | Given: <span class="stat-highlight">${ps.hospitalgiven || 0}</span>
                     </div>
+
                     <div class="details-card">
-                        <strong>Life & Status</strong>
-                        Life: ${data.life?.current || 0}/${data.life?.maximum || 0} | State: ${data.status?.state || 'Okay'}
+                        <strong>Battle Stats (Full Access)</strong>
+                        Strength: <span class="stat-highlight">${str.toLocaleString()}</span><br>
+                        Defense: <span class="stat-highlight">${def.toLocaleString()}</span><br>
+                        Speed: <span class="stat-highlight">${spd.toLocaleString()}</span><br>
+                        Dexterity: <span class="stat-highlight">${dex.toLocaleString()}</span><br>
+                        Total BS: <span style="color:var(--accent);" class="stat-highlight">${totalBS.toLocaleString()}</span>
                     </div>
+
                     <div class="details-card">
-                        <strong>Age & Gender</strong>
-                        Age: ${data.age || 'N/A'} days | Gender: ${data.gender || 'N/A'}
+                        <strong>Combat Outcomes & Losses</strong>
+                        Attacks Won: <span class="stat-highlight">${ps.attackswon || 0}</span><br>
+                        Attacks Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.attacks lost || ps.attacks_lost || ps.attackslost || 0}</span><br>
+                        Defends Won: <span class="stat-highlight">${ps.defendswon || 0}</span> | Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.defendslost || 0}</span><br>
+                        Escapes: <span class="stat-highlight">${ps.escapes || 0}</span> | Finest Mug: <span class="stat-highlight">$${(ps.bestmug || 0).toLocaleString()}</span>
                     </div>
+
                     <div class="details-card">
-                        <strong>Stats Overview</strong>
-                        Wins: ${data.personalstats?.attackswon || 0} | Mugs: ${data.personalstats?.attacksmugged || 0} | Hosp. Received: ${data.personalstats?.hospitalreceived || 0}
+                        <strong>Life, Status & Energy</strong>
+                        Life: <span class="stat-highlight">${data.life?.current || 0} / ${data.life?.maximum || 0}</span><br>
+                        Energy: <span class="stat-highlight">${data.energy?.current || 0} / ${data.energy?.maximum || 0}</span><br>
+                        Nerve: <span class="stat-highlight">${data.nerve?.current || 0} / ${data.nerve?.maximum || 0}</span><br>
+                        Happy: <span class="stat-highlight">${data.happy?.current || 0} / ${data.happy?.maximum || 0}</span>
+                    </div>
+
+                    <div class="details-card">
+                        <strong>Activity & Medical Data</strong>
+                        Xanax Taken: <span class="stat-highlight">${ps.xantaken || 0}</span><br>
+                        Overdoses: <span style="color:var(--warning);" class="stat-highlight">${ps.overdosed || 0}</span><br>
+                        Rehabs: <span class="stat-highlight">${ps.rehabs || 0}</span><br>
+                        Medical Items Used: <span class="stat-highlight">${ps.medicalitemsused || 0}</span>
+                    </div>
+
+                    <div class="details-card">
+                        <strong>Profile & Account Information</strong>
+                        Rank: <span class="stat-highlight">${data.rank || 'N/A'}</span><br>
+                        Age: <span class="stat-highlight">${data.age || 'N/A'} days</span><br>
+                        Gender: <span class="stat-highlight">${data.gender || 'N/A'}</span><br>
+                        Property: <span class="stat-highlight">${data.property || 'N/A'}</span>
                     </div>
                 </div>
 
-                <h4 style="margin: 10px 0 5px 0;">Recent Battles & Outcomes</h4>
-                <table style="font-size: 0.85em;">
-                    <thead><tr><th>Opponent</th><th>Outcome</th><th>Respect</th><th>Time</th></tr></thead>
-                    <tbody>${attackRows || "<tr><td colspan='4'>No recent combat records.</td></tr>"}</tbody>
-                </table>
+                <h4 style="margin: 15px 0 5px 0;">Recent Detailed Combat Log</h4>
+                <div style="max-height: 220px; overflow-y: auto;">
+                    <table style="font-size: 0.85em;">
+                        <thead><tr><th>Opponent</th><th>Outcome</th><th>Respect</th><th>Fair Fight</th><th>Timestamp</th></tr></thead>
+                        <tbody>${attackRows || "<tr><td colspan='5'>No recent combat records.</td></tr>"}</tbody>
+                    </table>
+                </div>
             `;
         } catch (err) {
             console.error(err);
-            content.innerHTML = `<div style="color:var(--danger)">Failed to load full profile data.</div>`;
+            content.innerHTML = `<div style="color:var(--danger)">Failed to fetch deep profile details.</div>`;
         }
     }
 
