@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>First Blood Faction Website</title>
+    <title>Faction Operations Management System</title>
     <style>
         :root {
             --bg: #0f172a;
             --card-bg: #1e293b;
             --card-border: #334155;
-            --accent: #ec4899;
-            --accent-hover: #db2777;
+            --accent: #0284c7;
+            --accent-hover: #0369a1;
             --text: #f8fafc;
             --text-muted: #94a3b8;
             --success: #22c55e;
@@ -18,131 +18,142 @@
             --danger: #ef4444;
         }
 
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 15px; margin-bottom: 20px; }
-        h1, h2, h3, h4 { margin: 0 0 10px 0; font-weight: 700; }
+        h1, h2, h3, h4 { margin: 0 0 10px 0; font-weight: 700; letter-spacing: -0.3px; }
         
-        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
         
-        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--card-border); background: #0f172a; color: #fff; margin-bottom: 8px; }
-        button { background: var(--accent); color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        input, select { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--card-border); background: #0f172a; color: #fff; margin-bottom: 8px; font-size: 0.95em; }
+        button { background: var(--accent); color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; font-size: 0.95em; }
         button:hover { background: var(--accent-hover); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-danger { background: var(--danger); }
         .btn-sm { padding: 5px 12px; font-size: 0.85em; }
 
-        .api-link { font-size: 0.85em; color: var(--accent); text-decoration: underline; display: inline-block; margin-top: 4px; }
-        .api-link:hover { color: var(--accent-hover); }
+        .api-link { font-size: 0.85em; color: #38bdf8; text-decoration: underline; display: inline-block; margin-top: 4px; }
+        .api-link:hover { color: #7dd3fc; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--card-border); }
-        th { background: #0f172a; color: var(--text-muted); font-size: 0.8em; text-transform: uppercase; }
+        th { background: #0f172a; color: var(--text-muted); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
-        .badge-online { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-        .badge-idle { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
-        .badge-offline { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; }
+        .badge-online { background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-idle { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
 
-        .admin-panel { border: 1px solid #9333ea; background: #1e1b4b; }
-        .stat-box { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 10px; }
-        .stat-value { font-size: 1.5em; font-weight: bold; color: var(--accent); }
+        .admin-panel { border: 1px solid #4f46e5; background: #0f172a; }
+        .stat-box { background: #0f172a; padding: 15px; border-radius: 6px; border: 1px solid var(--card-border); margin-top: 10px; }
+        .stat-value { font-size: 1.5em; font-weight: bold; color: var(--accent); margin-top: 4px; }
+
+        .status-msg { margin-top: 10px; font-size: 0.9em; font-weight: 500; }
+        .status-msg.error { color: var(--danger); }
+        .status-msg.info { color: var(--warning); }
 
         /* Dropdown Detail Box Styling */
         .details-row { display: none; background: #090d16; }
-        .details-container { padding: 18px; border-left: 4px solid var(--accent); margin: 8px 0; border-radius: 6px; }
+        .details-container { padding: 18px; border-left: 4px solid var(--accent); margin: 8px 0; border-radius: 4px; }
         .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
         .details-card { background: #1e293b; padding: 12px; border-radius: 6px; border: 1px solid var(--card-border); font-size: 0.88em; }
         .details-card strong { color: var(--text-muted); display: block; font-size: 0.75em; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-        .stat-highlight { font-size: 1.1em; font-weight: bold; color: #fff; }
+        .stat-highlight { font-size: 1.05em; font-weight: 600; color: #fff; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>Faction Website</h1>
-        <div id="user-header">Not Authenticated</div>
+        <h1>Faction Operations Management</h1>
+        <div id="user-header" style="font-size: 0.95em; color: var(--text-muted);">Status: Unauthenticated</div>
     </header>
 
     <div id="auth-section" class="card">
-        <h2>Connect Account</h2>
-        <input type="text" id="api-key-input" placeholder="Enter Full Access Torn API Key">
-        <a class="api-link" href="https://www.torn.com/preferences.php#tab=api?&step=addNewKey&title=FactionKey&type=4" target="_blank" rel="noopener">
-            🔑 Click here to automatically generate a Full Access API Key
-        </a>
-        <br><br>
-        <button onclick="saveSettings()">Save & Connect</button>
+        <h2>Account Authentication</h2>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px;">
+            Provide a valid Full Access API key to access faction operations and personal statistics.
+        </p>
+        <input type="text" id="api-key-input" placeholder="Enter API Key">
+        <div>
+            <a class="api-link" href="https://www.torn.com/preferences.php#tab=api?&step=addNewKey&title=FactionKey&type=4" target="_blank" rel="noopener">
+                Generate Full Access API Key via Official Settings
+            </a>
+        </div>
+        <div id="auth-status" class="status-msg"></div>
+        <br>
+        <button id="connect-btn" onclick="saveSettings()">Authenticate & Connect</button>
     </div>
 
     <div id="dashboard-section" style="display: none;">
 
         <div class="grid">
             <div class="card">
-                <h2>Member Profile</h2>
-                <div id="user-profile-data">Loading profile...</div>
+                <h2>Member Overview</h2>
+                <div id="user-profile-data">Retrieving profile parameters...</div>
                 
                 <div class="stat-box">
-                    <div>Independent Bank Balance</div>
+                    <div>Consolidated Capital Reserve</div>
                     <div id="bank-balance-display" class="stat-value">$0</div>
                 </div>
 
-                <h3>Request Vault Withdrawal</h3>
-                <input type="number" id="withdraw-amount" placeholder="Amount ($)">
-                <input type="text" id="withdraw-reason" placeholder="Reason (e.g. XAN, Armory, War)">
+                <h3>Submit Vault Disbursement Request</h3>
+                <input type="number" id="withdraw-amount" placeholder="Amount (USD)">
+                <input type="text" id="withdraw-reason" placeholder="Operational Justification">
                 <button onclick="submitWithdrawal()">Submit Request</button>
             </div>
 
             <div class="card">
-                <h2>Respect Accumulator & Combat Log</h2>
+                <h2>Respect Contribution & Combat Activity</h2>
                 <div class="stat-box">
-                    <div>Lifetime Tracked Respect Contributed</div>
+                    <div>Total Accumulated Respect Contributed</div>
                     <div id="total-respect-display" class="stat-value">0.00</div>
-                    <small style="color:var(--text-muted);">*Additive score: Never decreases when old battle logs expire.</small>
+                    <small style="color:var(--text-muted);">Cumulative tracking logic active. Historical values are retained perpetually.</small>
                 </div>
-                <h3>Recent Combat Log</h3>
+                <h3>Recent Engagement Log</h3>
                 <div style="max-height: 200px; overflow-y: auto;">
                     <table>
-                        <thead><tr><th>Target</th><th>Result</th><th>Respect</th></tr></thead>
-                        <tbody id="battle-log-body"><tr><td colspan="3">Loading attacks...</td></tr></tbody>
+                        <thead><tr><th>Target</th><th>Outcome</th><th>Respect</th></tr></thead>
+                        <tbody id="battle-log-body"><tr><td colspan="3">Loading records...</td></tr></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
         <div id="admin-panel" class="card admin-panel" style="display: none;">
-            <h2>Admin Control Panel (Authorized Preset Account)</h2>
+            <h2>Administrative Control Panel</h2>
             <div class="grid">
                 <div class="stat-box">
-                    <div>Admin Cash on Hand</div>
+                    <div>Administrator Liquid Holdings</div>
                     <div id="admin-cash-display" class="stat-value">$0</div>
                 </div>
             </div>
 
-            <h3>Pending Withdrawal Requests</h3>
+            <h3>Pending Vault Disbursement Requests</h3>
             <table>
                 <thead>
-                    <tr><th>Player ID</th><th>Name</th><th>Amount</th><th>Reason</th><th>Submitted</th><th>Action</th></tr>
+                    <tr><th>Player ID</th><th>Member Name</th><th>Amount</th><th>Reason</th><th>Submission Date</th><th>Action</th></tr>
                 </thead>
                 <tbody id="withdraw-requests-body">
-                    <tr><td colspan="6">Loading requests from backend...</td></tr>
+                    <tr><td colspan="6">Loading records from backend server...</td></tr>
                 </tbody>
             </table>
         </div>
 
         <div class="card">
-            <h2>Faction Members</h2>
+            <h2>Faction Roster</h2>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
-                        <tr><th>ID</th><th>Name</th><th>Level</th><th>Position</th><th>Status</th><th>API Key</th><th>Actions</th></tr>
+                        <tr><th>ID</th><th>Name</th><th>Level</th><th>Position</th><th>Status</th><th>API Status</th><th>Administrative Action</th></tr>
                     </thead>
-                    <tbody id="roster-body"><tr><td colspan="7">Loading roster...</td></tr></tbody>
+                    <tbody id="roster-body"><tr><td colspan="7">Loading faction roster...</td></tr></tbody>
                 </table>
             </div>
-            <button class="btn-danger" style="margin-top:15px;" onclick="logout()">Disconnect Account</button>
+            <button class="btn-danger" style="margin-top:15px;" onclick="logout()">Disconnect Session</button>
         </div>
 
     </div>
@@ -160,13 +171,35 @@
         }
     });
 
-    function saveSettings() {
-        const key = document.getElementById("api-key-input").value.trim();
-        if (!key) return alert("A Full Access API Key is required.");
+    function setAuthStatus(message, isError = false) {
+        const elem = document.getElementById("auth-status");
+        if (!elem) return;
+        elem.innerText = message;
+        elem.className = "status-msg " + (isError ? "error" : "info");
+    }
+
+    async function saveSettings() {
+        const keyInput = document.getElementById("api-key-input");
+        const btn = document.getElementById("connect-btn");
+        const key = keyInput.value.trim();
+
+        if (!key) {
+            setAuthStatus("Please enter a valid API Key prior to connecting.", true);
+            return;
+        }
         
+        btn.disabled = true;
+        setAuthStatus("Authenticating credentials with Torn API...");
+
         localStorage.setItem("torn_api_key", key);
         setCookie("torn_api_key", key, 30);
-        loadDashboard(key);
+
+        const success = await loadDashboard(key);
+        btn.disabled = false;
+
+        if (!success) {
+            setAuthStatus("Authentication failed. Please check your API key and verify network access.", true);
+        }
     }
 
     function logout() {
@@ -183,7 +216,9 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user_id: String(userId), api_key: apiKey })
             });
-        } catch (err) { console.error("Key sync failed:", err); }
+        } catch (err) {
+            console.error("Key synchronization error:", err);
+        }
     }
 
     async function loadDashboard(apiKey) {
@@ -192,28 +227,25 @@
             const userData = await userRes.json();
 
             if (userData.error) {
-                alert("API Error: " + userData.error.error + "\nEnsure you are using a Full Access API Key.");
-                logout();
-                return;
+                setAuthStatus("API Request Error: " + userData.error.error, true);
+                return false;
             }
 
-            // Sync user key with backend
             registerApiKeyWithBackend(userData.player_id, apiKey);
 
             document.getElementById("auth-section").style.display = "none";
             document.getElementById("dashboard-section").style.display = "block";
-            document.getElementById("user-header").innerHTML = `Logged in: <strong>${userData.name}</strong> [${userData.player_id}]`;
+            document.getElementById("user-header").innerHTML = `Authenticated Member: <strong>${userData.name}</strong> [${userData.player_id}]`;
 
             document.getElementById("user-profile-data").innerHTML = `
                 <p><strong>Rank:</strong> ${userData.rank || 'N/A'}</p>
                 <p><strong>Level:</strong> ${userData.level || 'N/A'}</p>
-                <p><strong>Age:</strong> ${userData.age || 'N/A'} days</p>
+                <p><strong>Account Age:</strong> ${userData.age || 'N/A'} days</p>
             `;
 
             const totalBank = (userData.money_onhand || 0) + (userData.city_bank?.amount || 0) + (userData.vault_amount || 0);
             document.getElementById("bank-balance-display").innerText = "$" + totalBank.toLocaleString();
 
-            // Additive respect log calculation
             processBattleLogs(userData.player_id, userData.attacks || {});
 
             const isPresetAdmin = parseInt(userData.player_id) === AUTHORIZED_PRESET_ID;
@@ -228,9 +260,12 @@
                 loadFactionRoster(userData.faction.faction_id, apiKey, isPresetAdmin);
             }
 
+            return true;
+
         } catch (err) {
-            console.error(err);
-            alert("Error loading dashboard data. Please check your API key permissions.");
+            console.error("Dashboard initialization error:", err);
+            setAuthStatus("Network error encountered during authentication.", true);
+            return false;
         }
     }
 
@@ -248,7 +283,6 @@
             const attackId = atk.code || `${atk.timestamp_ended}_${atk.defender_id}`;
             const respectGained = parseFloat(atk.respect_gain || 0);
 
-            // Add new respect to running cumulative score if never seen before
             if (!processedSet.has(attackId)) {
                 accumulatedRespect += respectGained;
                 processedSet.add(attackId);
@@ -265,12 +299,11 @@
             }
         });
 
-        // Save progress permanently
         localStorage.setItem(storageKeyProcessed, JSON.stringify(Array.from(processedSet)));
         localStorage.setItem(storageKeyTotalRespect, accumulatedRespect.toString());
 
         document.getElementById("total-respect-display").innerText = accumulatedRespect.toFixed(2);
-        document.getElementById("battle-log-body").innerHTML = rows || "<tr><td colspan='3'>No recent attacks.</td></tr>";
+        document.getElementById("battle-log-body").innerHTML = rows || "<tr><td colspan='3'>No recent engagement logs found.</td></tr>";
     }
 
     async function loadFactionRoster(factionId, currentApiKey, isPresetAdmin) {
@@ -282,7 +315,7 @@
                     if (keysRes.ok) {
                         connectedKeysMap = await keysRes.json();
                     }
-                } catch(e) { console.error("Could not fetch member keys:", e); }
+                } catch(e) { console.error("Error loading key registry:", e); }
             }
 
             const currentUserId = document.getElementById("user-header").innerText.match(/\[(\d+)\]/)?.[1];
@@ -310,27 +343,27 @@
                         <td><span class="badge ${statusClass}">${m.status.details || m.status.state}</span></td>
                         <td>
                             ${hasKey 
-                                ? `<span class="badge badge-online">Connected</span>` 
-                                : `<span class="badge badge-offline">No Key</span>`}
+                                ? `<span class="badge badge-online">Registered</span>` 
+                                : `<span class="badge badge-offline">Unregistered</span>`}
                         </td>
                         <td>
                             ${isPresetAdmin 
-                                ? `<button class="btn-sm" onclick="toggleMemberDropdown('${id}', '${memberKey}')">Inspect Profile ▼</button>` 
-                                : `<span style="color:var(--text-muted); font-size:0.8em;">Restricted</span>`}
+                                ? `<button class="btn-sm" onclick="toggleMemberDropdown('${id}', '${memberKey}')">Inspect Member</button>` 
+                                : `<span style="color:var(--text-muted); font-size:0.8em;">Restricted Access</span>`}
                         </td>
                     </tr>
                     ${isPresetAdmin ? `
                     <tr id="dropdown-row-${id}" class="details-row">
                         <td colspan="7">
                             <div class="details-container" id="dropdown-content-${id}">
-                                <em>Click 'Inspect Profile' to load complete stats & logs...</em>
+                                <em>Select 'Inspect Member' to query member telemetry...</em>
                             </div>
                         </td>
                     </tr>` : ''}
                 `;
             }
             document.getElementById("roster-body").innerHTML = rows;
-        } catch (err) { console.error(err); }
+        } catch (err) { console.error("Roster query error:", err); }
     }
 
     async function toggleMemberDropdown(memberId, apiKey) {
@@ -345,39 +378,36 @@
         row.style.display = "table-row";
 
         if (!apiKey) {
-            content.innerHTML = `<div style="color:var(--danger)">No full access API key saved for this member yet.</div>`;
+            content.innerHTML = `<div style="color:var(--danger)">No registered API key available for this member.</div>`;
             return;
         }
 
-        content.innerHTML = `<em>Querying all endpoints (profile, battlestats, personalstats, attacks)...</em>`;
+        content.innerHTML = `<em>Querying endpoints (Profile, Combat Statistics, Personal Statistics, Logs)...</em>`;
 
         try {
             const res = await fetch(`https://api.torn.com/user/${memberId}?selections=profile,battlestats,personalstats,attacks,crimes,bounties&key=${apiKey}`);
             const data = await res.json();
 
             if (data.error) {
-                content.innerHTML = `<div style="color:var(--danger)">API Error: ${data.error.error} (Requires Full Access Key)</div>`;
+                content.innerHTML = `<div style="color:var(--danger)">API Query Error: ${data.error.error} (Requires Full Access API Key)</div>`;
                 return;
             }
 
             const ps = data.personalstats || {};
             const bs = data.battlestats || {};
 
-            // Hospital Details
             const inHospital = data.status?.state === "Hospital";
             const hospTimeLeft = data.status?.until 
                 ? Math.max(0, Math.ceil((data.status.until - (Date.now()/1000)) / 60)) 
                 : 0;
             const totalHospTimeHours = ps.useractivity ? (ps.hospitaltime / 3600).toFixed(1) : ((ps.hospitaltime || 0) / 3600).toFixed(1);
 
-            // Battle Stats Calculations
             const str = bs.strength || 0;
             const def = bs.defense || 0;
             const spd = bs.speed || 0;
             const dex = bs.dexterity || 0;
             const totalBS = bs.total || (str + def + spd + dex);
 
-            // Recent Attacks Table
             const attackList = Object.values(data.attacks || {}).reverse().slice(0, 10);
             let attackRows = "";
             attackList.forEach(a => {
@@ -395,89 +425,94 @@
             });
 
             content.innerHTML = `
-                <h4 style="color:var(--accent);">Member Deep-Dive: ${data.name} [${data.player_id}]</h4>
+                <h4 style="color:var(--accent);">Member Analytics Report: ${data.name} [${data.player_id}]</h4>
                 
                 <div class="details-grid">
                     <div class="details-card">
                         <strong>Hospitalization Status</strong>
                         ${inHospital 
-                            ? `<span style="color:var(--danger); font-weight:bold;">IN HOSPITAL (${hospTimeLeft} mins left)</span><br><small>${data.status.details || ''}</small>` 
-                            : `<span style="color:var(--success); font-weight:bold;">Clear / Active</span>`}<br>
-                        Total Lifetime Hosp Time: <span class="stat-highlight">${totalHospTimeHours} hrs</span><br>
-                        Hosp Received: <span class="stat-highlight">${ps.hospitalreceived || 0}</span> | Given: <span class="stat-highlight">${ps.hospitalgiven || 0}</span>
+                            ? `<span style="color:var(--danger); font-weight:bold;">HOSPITALIZED (${hospTimeLeft} minutes remaining)</span><br><small>${data.status.details || ''}</small>` 
+                            : `<span style="color:var(--success); font-weight:bold;">Active / Unrestricted</span>`}<br>
+                        Lifetime Hospital Duration: <span class="stat-highlight">${totalHospTimeHours} hours</span><br>
+                        Hospitalizations Received: <span class="stat-highlight">${ps.hospitalreceived || 0}</span> | Inflicted: <span class="stat-highlight">${ps.hospitalgiven || 0}</span>
                     </div>
 
                     <div class="details-card">
-                        <strong>Battle Stats (Full Access)</strong>
+                        <strong>Battle Statistics</strong>
                         Strength: <span class="stat-highlight">${str.toLocaleString()}</span><br>
                         Defense: <span class="stat-highlight">${def.toLocaleString()}</span><br>
                         Speed: <span class="stat-highlight">${spd.toLocaleString()}</span><br>
                         Dexterity: <span class="stat-highlight">${dex.toLocaleString()}</span><br>
-                        Total BS: <span style="color:var(--accent);" class="stat-highlight">${totalBS.toLocaleString()}</span>
+                        Total Battle Stats: <span style="color:var(--accent);" class="stat-highlight">${totalBS.toLocaleString()}</span>
                     </div>
 
                     <div class="details-card">
-                        <strong>Combat Outcomes & Losses</strong>
+                        <strong>Combat Performance & Defeats</strong>
                         Attacks Won: <span class="stat-highlight">${ps.attackswon || 0}</span><br>
-                        Attacks Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.attacks lost || ps.attacks_lost || ps.attackslost || 0}</span><br>
+                        Attacks Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.attackslost || ps.attacks_lost || 0}</span><br>
                         Defends Won: <span class="stat-highlight">${ps.defendswon || 0}</span> | Lost: <span style="color:var(--danger);" class="stat-highlight">${ps.defendslost || 0}</span><br>
-                        Escapes: <span class="stat-highlight">${ps.escapes || 0}</span> | Finest Mug: <span class="stat-highlight">$${(ps.bestmug || 0).toLocaleString()}</span>
+                        Escapes: <span class="stat-highlight">${ps.escapes || 0}</span> | Maximum Mug Value: <span class="stat-highlight">$${(ps.bestmug || 0).toLocaleString()}</span>
                     </div>
 
                     <div class="details-card">
-                        <strong>Life, Status & Energy</strong>
+                        <strong>Status & Reserves</strong>
                         Life: <span class="stat-highlight">${data.life?.current || 0} / ${data.life?.maximum || 0}</span><br>
                         Energy: <span class="stat-highlight">${data.energy?.current || 0} / ${data.energy?.maximum || 0}</span><br>
                         Nerve: <span class="stat-highlight">${data.nerve?.current || 0} / ${data.nerve?.maximum || 0}</span><br>
-                        Happy: <span class="stat-highlight">${data.happy?.current || 0} / ${data.happy?.maximum || 0}</span>
+                        Happiness: <span class="stat-highlight">${data.happy?.current || 0} / ${data.happy?.maximum || 0}</span>
                     </div>
 
                     <div class="details-card">
-                        <strong>Activity & Medical Data</strong>
-                        Xanax Taken: <span class="stat-highlight">${ps.xantaken || 0}</span><br>
-                        Overdoses: <span style="color:var(--warning);" class="stat-highlight">${ps.overdosed || 0}</span><br>
-                        Rehabs: <span class="stat-highlight">${ps.rehabs || 0}</span><br>
-                        Medical Items Used: <span class="stat-highlight">${ps.medicalitemsused || 0}</span>
+                        <strong>Medical & Rehabilitation Metrics</strong>
+                        Xanax Consumption Count: <span class="stat-highlight">${ps.xantaken || 0}</span><br>
+                        Overdose Incidents: <span style="color:var(--warning);" class="stat-highlight">${ps.overdosed || 0}</span><br>
+                        Rehabilitation Visits: <span class="stat-highlight">${ps.rehabs || 0}</span><br>
+                        Medical Items Administered: <span class="stat-highlight">${ps.medicalitemsused || 0}</span>
                     </div>
 
                     <div class="details-card">
-                        <strong>Profile & Account Information</strong>
+                        <strong>Account Telemetry</strong>
                         Rank: <span class="stat-highlight">${data.rank || 'N/A'}</span><br>
-                        Age: <span class="stat-highlight">${data.age || 'N/A'} days</span><br>
+                        Account Age: <span class="stat-highlight">${data.age || 'N/A'} days</span><br>
                         Gender: <span class="stat-highlight">${data.gender || 'N/A'}</span><br>
-                        Property: <span class="stat-highlight">${data.property || 'N/A'}</span>
+                        Residence Property: <span class="stat-highlight">${data.property || 'N/A'}</span>
                     </div>
                 </div>
 
-                <h4 style="margin: 15px 0 5px 0;">Recent Detailed Combat Log</h4>
+                <h4 style="margin: 15px 0 5px 0;">Detailed Combat Engagement Log</h4>
                 <div style="max-height: 220px; overflow-y: auto;">
                     <table style="font-size: 0.85em;">
-                        <thead><tr><th>Opponent</th><th>Outcome</th><th>Respect</th><th>Fair Fight</th><th>Timestamp</th></tr></thead>
-                        <tbody>${attackRows || "<tr><td colspan='5'>No recent combat records.</td></tr>"}</tbody>
+                        <thead><tr><th>Opponent</th><th>Outcome</th><th>Respect</th><th>Fair Fight Multiplier</th><th>Timestamp</th></tr></thead>
+                        <tbody>${attackRows || "<tr><td colspan='5'>No detailed combat engagement records found.</td></tr>"}</tbody>
                     </table>
                 </div>
             `;
         } catch (err) {
-            console.error(err);
-            content.innerHTML = `<div style="color:var(--danger)">Failed to fetch deep profile details.</div>`;
+            console.error("Member inspection error:", err);
+            content.innerHTML = `<div style="color:var(--danger)">Failed to load detailed profile data.</div>`;
         }
     }
 
     async function submitWithdrawal() {
         if (!VAL_TOWN_URL || VAL_TOWN_URL.includes("your-username-valname")) {
-            return alert("Val.town backend URL is not configured in the code.");
+            return alert("Val.town backend endpoint URL is not properly configured.");
         }
 
         const amount = document.getElementById("withdraw-amount").value;
         const reason = document.getElementById("withdraw-reason").value;
 
-        if (!amount || amount <= 0) return alert("Please enter a valid amount.");
+        if (!amount || amount <= 0) return alert("Please enter a valid monetary amount.");
 
         const apiKey = localStorage.getItem("torn_api_key");
-        const userRes = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}`);
-        const user = await userRes.json();
-
+        
         try {
+            const userRes = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}`);
+            const user = await userRes.json();
+
+            if (user.error) {
+                return alert("API Request Failed: " + user.error.error);
+            }
+
             const response = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/request`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -490,15 +525,15 @@
             });
 
             if (response.ok) {
-                alert("Withdrawal request submitted to admin!");
+                alert("Withdrawal request successfully transmitted to administration.");
                 document.getElementById("withdraw-amount").value = "";
                 document.getElementById("withdraw-reason").value = "";
             } else {
-                alert("Failed to submit request.");
+                alert("Failed to record request on backend server.");
             }
         } catch (err) {
-            console.error(err);
-            alert("Error connecting to backend service.");
+            console.error("Withdrawal submission error:", err);
+            alert("Error communicating with backend service.");
         }
     }
 
@@ -527,17 +562,17 @@
                             <td>${reason}</td>
                             <td>${dateDisplay}</td>
                             <td>
-                                <button class="btn-sm" onclick="completeWithdrawal(${r.id})">Complete</button>
+                                <button class="btn-sm" onclick="completeWithdrawal(${r.id})">Mark Completed</button>
                             </td>
                         </tr>
                     `;
                 });
             }
 
-            document.getElementById("withdraw-requests-body").innerHTML = rows || "<tr><td colspan='6'>No pending requests.</td></tr>";
+            document.getElementById("withdraw-requests-body").innerHTML = rows || "<tr><td colspan='6'>No pending requests found.</td></tr>";
         } catch (err) {
-            console.error(err);
-            document.getElementById("withdraw-requests-body").innerHTML = "<tr><td colspan='6'>Failed to fetch requests from backend.</td></tr>";
+            console.error("Withdrawal fetch error:", err);
+            document.getElementById("withdraw-requests-body").innerHTML = "<tr><td colspan='6'>Failed to fetch requests from backend server.</td></tr>";
         }
     }
 
@@ -554,11 +589,11 @@
             if (response.ok) {
                 loadWithdrawalRequests();
             } else {
-                alert("Failed to mark request as completed.");
+                alert("Failed to update status on server.");
             }
         } catch (err) {
-            console.error(err);
-            alert("Error connecting to backend.");
+            console.error("Completion update error:", err);
+            alert("Network error updating request status.");
         }
     }
 
