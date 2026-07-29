@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torn Faction Hub</title>
+    <title>First Blood Faction Website</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -51,14 +51,13 @@
 
 <div class="container">
     <header>
-        <h1>⚡ Faction Management Hub</h1>
+        <h1>Faction Website</h1>
         <div id="user-header">Not Authenticated</div>
     </header>
 
     <div id="auth-section" class="card">
-        <h2>🔑 Connect Account</h2>
+        <h2>Connect Account</h2>
         <input type="text" id="api-key-input" placeholder="Torn API Key (Limited or Full)">
-        <input type="text" id="valtown-url-input" placeholder="Val.town Backend URL (e.g. https://user-val.web.val.run)">
         <button onclick="saveSettings()">Save & Connect</button>
     </div>
 
@@ -66,7 +65,7 @@
 
         <div class="grid">
             <div class="card">
-                <h2>👤 Member Profile</h2>
+                <h2>Member Profile</h2>
                 <div id="user-profile-data">Loading profile...</div>
                 
                 <div class="stat-box">
@@ -74,14 +73,14 @@
                     <div id="bank-balance-display" class="stat-value">$0</div>
                 </div>
 
-                <h3>💸 Request Bank Withdrawal</h3>
+                <h3>Request Vault Withdrawal</h3>
                 <input type="number" id="withdraw-amount" placeholder="Amount ($)">
                 <input type="text" id="withdraw-reason" placeholder="Reason (e.g. XAN, Armory, War)">
                 <button onclick="submitWithdrawal()">Submit Request</button>
             </div>
 
             <div class="card">
-                <h2>⚔️ Respect & Battle Stats</h2>
+                <h2>Respect & Battle Stats</h2>
                 <div class="stat-box">
                     <div>Total Respect Contributed (Recent Attacks)</div>
                     <div id="total-respect-display" class="stat-value">0.00</div>
@@ -97,7 +96,7 @@
         </div>
 
         <div id="admin-panel" class="card admin-panel" style="display: none;">
-            <h2>👑 Admin Control Panel (Restricted View)</h2>
+            <h2>Admin Control Panel (Restricted View)</h2>
             <div class="grid">
                 <div class="stat-box">
                     <div>Admin Cash on Hand</div>
@@ -105,19 +104,19 @@
                 </div>
             </div>
 
-            <h3>📥 Pending Withdrawal Requests</h3>
+            <h3>Pending Withdrawal Requests</h3>
             <table>
                 <thead>
                     <tr><th>Player ID</th><th>Name</th><th>Amount</th><th>Reason</th><th>Submitted</th></tr>
                 </thead>
                 <tbody id="withdraw-requests-body">
-                    <tr><td colspan="5">Loading requests from Val.town backend...</td></tr>
+                    <tr><td colspan="5">Loading requests from backend...</td></tr>
                 </tbody>
             </table>
         </div>
 
         <div class="card">
-            <h2>🛡️ Faction Roster</h2>
+            <h2>Faction Members</h2>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -133,14 +132,13 @@
 </div>
 
 <script>
-    // PRESET ADMIN ID
+    // PRESET CONFIGURATION
     const AUTHORIZED_PRESET_ID = 4427995; // Change to your Torn Player ID
+    const VAL_TOWN_URL = "https://unboundddestiny--e68343008b2911f1bbb81607ee4eb77e.web.val.run"; // Change to your Val.town HTTP Val URL
 
     document.addEventListener("DOMContentLoaded", () => {
         const savedKey = localStorage.getItem("torn_api_key") || getCookie("torn_api_key");
-        const savedValUrl = localStorage.getItem("valtown_url");
         
-        if (savedValUrl) document.getElementById("valtown-url-input").value = savedValUrl;
         if (savedKey) {
             document.getElementById("api-key-input").value = savedKey;
             loadDashboard(savedKey);
@@ -149,12 +147,9 @@
 
     function saveSettings() {
         const key = document.getElementById("api-key-input").value.trim();
-        const valUrl = document.getElementById("valtown-url-input").value.trim();
-        
         if (!key) return alert("API Key is required.");
         
         localStorage.setItem("torn_api_key", key);
-        localStorage.setItem("valtown_url", valUrl);
         setCookie("torn_api_key", key, 30);
         
         loadDashboard(key);
@@ -187,14 +182,14 @@
                 <p><strong>Level:</strong> ${userData.level}</p>
             `;
 
-            // Bank balance calculation (Vault + Money on Hand + Bank)
+            // Bank balance calculation
             const totalBank = (userData.money_onhand || 0) + (userData.city_bank?.amount || 0) + (userData.vault_amount || 0);
             document.getElementById("bank-balance-display").innerText = "$" + totalBank.toLocaleString();
 
-            // Process Battle Log for Respect Tracking
+            // Process Battle Log
             processBattleLogs(userData.attacks || {});
 
-            // Admin Panel Visibility Check
+            // Admin Panel Visibility
             if (parseInt(userData.player_id) === AUTHORIZED_PRESET_ID) {
                 document.getElementById("admin-panel").style.display = "block";
                 document.getElementById("admin-cash-display").innerText = "$" + (userData.money_onhand || 0).toLocaleString();
@@ -216,7 +211,7 @@
         let totalRespect = 0;
         let rows = "";
 
-        const attackList = Object.values(attacks).slice(0, 10); // Last 10 attacks
+        const attackList = Object.values(attacks).slice(0, 10);
         attackList.forEach(atk => {
             const respectGained = parseFloat(atk.respect_gain || 0);
             totalRespect += respectGained;
@@ -260,42 +255,49 @@
     }
 
     async function submitWithdrawal() {
-        const valUrl = localStorage.getItem("valtown_url");
-        if (!valUrl) return alert("Please enter a Val.town Backend URL in settings first.");
+        if (!VAL_TOWN_URL || VAL_TOWN_URL.includes("your-username-valname")) {
+            return alert("Val.town backend URL is not configured in the code.");
+        }
 
         const amount = document.getElementById("withdraw-amount").value;
         const reason = document.getElementById("withdraw-reason").value;
+
+        if (!amount || amount <= 0) return alert("Please enter a valid amount.");
 
         const apiKey = localStorage.getItem("torn_api_key");
         const userRes = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}`);
         const user = await userRes.json();
 
-        const response = await fetch(`${valUrl.replace(/\/$/, "")}/request`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                user_id: user.player_id,
-                user_name: user.name,
-                amount: parseInt(amount),
-                reason: reason
-            })
-        });
+        try {
+            const response = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/request`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: user.player_id,
+                    user_name: user.name,
+                    amount: parseInt(amount),
+                    reason: reason
+                })
+            });
 
-        if (response.ok) {
-            alert("Withdrawal request submitted to admin!");
-            document.getElementById("withdraw-amount").value = "";
-            document.getElementById("withdraw-reason").value = "";
-        } else {
-            alert("Failed to submit request to Val.town backend.");
+            if (response.ok) {
+                alert("Withdrawal request submitted to admin!");
+                document.getElementById("withdraw-amount").value = "";
+                document.getElementById("withdraw-reason").value = "";
+            } else {
+                alert("Failed to submit request.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error connecting to backend service.");
         }
     }
 
     async function loadWithdrawalRequests() {
-        const valUrl = localStorage.getItem("valtown_url");
-        if (!valUrl) return;
+        if (!VAL_TOWN_URL || VAL_TOWN_URL.includes("your-username-valname")) return;
 
         try {
-            const res = await fetch(`${valUrl.replace(/\/$/, "")}/requests`);
+            const res = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/requests`);
             const requests = await res.json();
             let rows = "";
 
@@ -313,7 +315,7 @@
 
             document.getElementById("withdraw-requests-body").innerHTML = rows || "<tr><td colspan='5'>No pending requests.</td></tr>";
         } catch (err) {
-            document.getElementById("withdraw-requests-body").innerHTML = "<tr><td colspan='5'>Failed to fetch requests from Val.town.</td></tr>";
+            document.getElementById("withdraw-requests-body").innerHTML = "<tr><td colspan='5'>Failed to fetch requests from backend.</td></tr>";
         }
     }
 
