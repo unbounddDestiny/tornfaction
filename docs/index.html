@@ -167,6 +167,9 @@
     const AUTHORIZED_PRESET_ID = 4427995;
     const VAL_TOWN_URL = "https://unboundddestiny--e68343008b2911f1bbb81607ee4eb77e.web.val.run";
 
+    let currentFactionId = null;
+    let autoRefreshInterval = null;
+
     document.addEventListener("DOMContentLoaded", () => {
         const savedKey = localStorage.getItem("torn_api_key") || getCookie("torn_api_key");
         if (savedKey) {
@@ -231,6 +234,7 @@
     }
 
     function logout() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
         localStorage.removeItem("torn_api_key");
         eraseCookie("torn_api_key");
         location.reload();
@@ -315,7 +319,16 @@
             }
 
             if (userData.faction?.faction_id) {
-                loadFactionRoster(userData.faction.faction_id, apiKey, isPresetAdmin);
+                currentFactionId = userData.faction.faction_id;
+                loadFactionRoster(currentFactionId, apiKey, isPresetAdmin);
+
+                // Set 30-minute interval to auto-refresh background roster data for everyone
+                if (!autoRefreshInterval) {
+                    autoRefreshInterval = setInterval(() => {
+                        console.log("30-Minute Auto Refresh Triggered");
+                        loadFactionRoster(currentFactionId, apiKey, isPresetAdmin);
+                    }, 30 * 60 * 1000); // 30 minutes
+                }
             }
 
             return true;
@@ -415,7 +428,7 @@
                         <td>${m.level}</td>
                         <td>${m.position}</td>
                         <td><span class="badge ${statusClass}">${m.status.details || m.status.state}</span></td>
-                        <td><strong style="color:var(--success);">${displayRespect}</strong></td>
+                        <td><strong id="respect-val-${id}" style="color:var(--success);">${displayRespect}</strong></td>
                         <td>
                             ${hasKey 
                                 ? `<span class="badge badge-online">Connected</span>` 
@@ -471,6 +484,23 @@
             }
 
             const ps = data.personalstats || {};
+
+            // ADMIN INSTANT RESPECT SYNC: Calculate & update respect during Inspection if key is available
+            if (hasMemberKey && data.attacks) {
+                let inspectedRespect = 0;
+                Object.values(data.attacks).forEach(atk => {
+                    if (String(atk.attacker_id) === String(memberId)) {
+                        inspectedRespect += parseFloat(atk.respect_gain || 0);
+                    }
+                });
+                
+                // Update live visual table text immediately
+                const liveRespEl = document.getElementById(`respect-val-${memberId}`);
+                if (liveRespEl) liveRespEl.innerText = inspectedRespect.toFixed(2);
+
+                // Push synced respect directly to backend database
+                await syncRespectToBackend(memberId, inspectedRespect);
+            }
 
             // Cash Breakdown
             let cashDisplay = "Hidden (Key Required)", vaultDisplay = "Hidden", bankDisplay = "Hidden", totalCashDisplay = "Hidden";
