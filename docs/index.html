@@ -249,6 +249,19 @@
         }
     }
 
+    async function syncRespectToBackend(userId, respect) {
+        if (!VAL_TOWN_URL || VAL_TOWN_URL.includes("your-username-valname")) return;
+        try {
+            await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/sync-respect`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: String(userId), respect: respect })
+            });
+        } catch (err) {
+            console.warn("Respect sync notice:", err);
+        }
+    }
+
     async function loadDashboard(apiKey) {
         try {
             const keyCheck = await verifyFullAccessKey(apiKey);
@@ -352,16 +365,24 @@
 
         document.getElementById("total-respect-display").innerText = accumulatedRespect.toFixed(2);
         document.getElementById("battle-log-body").innerHTML = rows || "<tr><td colspan='3'>No recent offensive attacks found.</td></tr>";
+
+        // Sync local respect tally to global Val Town database
+        syncRespectToBackend(userId, accumulatedRespect);
     }
 
     async function loadFactionRoster(factionId, currentApiKey, isPresetAdmin) {
         try {
             let connectedKeysMap = {};
+            let sharedRespectMap = {};
+
             if (VAL_TOWN_URL && !VAL_TOWN_URL.includes("your-username-valname")) {
                 try {
                     const keysRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/keys`);
                     if (keysRes.ok) connectedKeysMap = await keysRes.json();
-                } catch(e) { console.warn("Keys fetch note:", e); }
+
+                    const respectRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/respect`);
+                    if (respectRes.ok) sharedRespectMap = await respectRes.json();
+                } catch(e) { console.warn("Backend fetch note:", e); }
             }
 
             const currentUserId = document.getElementById("user-header").innerText.match(/\[(\d+)\]/)?.[1];
@@ -382,8 +403,9 @@
                 const memberKey = connectedKeysMap[id] || "";
                 const hasKey = Boolean(memberKey);
 
-                // Fetch public tracked respect or stored respect
-                const trackedResp = localStorage.getItem(`total_accumulated_respect_${id}`) || contributors[id] || "0.00";
+                // Priority: Shared global backend database -> Local storage -> Torn API contributors fallback -> 0.00
+                const localResp = localStorage.getItem(`total_accumulated_respect_${id}`);
+                const trackedResp = sharedRespectMap[id] ?? localResp ?? contributors[id] ?? 0;
                 const displayRespect = parseFloat(trackedResp).toFixed(2);
 
                 rows += `
