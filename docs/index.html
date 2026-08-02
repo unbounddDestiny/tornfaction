@@ -37,7 +37,6 @@
         .btn-danger { background: var(--danger); }
         .btn-sm { padding: 5px 12px; font-size: 0.85em; }
 
-        /* Highly Legible Links */
         .api-link { font-size: 0.9em; color: var(--link-color); text-decoration: underline; font-weight: 600; display: inline-block; margin-top: 6px; padding: 4px 8px; background: rgba(56, 189, 248, 0.1); border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2); }
         .api-link:hover { color: var(--link-hover); background: rgba(56, 189, 248, 0.2); }
 
@@ -58,7 +57,6 @@
         .status-msg.error { color: var(--danger); }
         .status-msg.info { color: var(--warning); }
 
-        /* Dropdown Detail Box Styling */
         .details-row { display: none; background: #090d16; }
         .details-container { padding: 18px; border-left: 4px solid var(--accent); margin: 8px 0; border-radius: 4px; }
         .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 15px; }
@@ -111,11 +109,11 @@
             </div>
 
             <div class="card">
-                <h2>Respect Tracker & Combat Log (Offense Only)</h2>
+                <h2>Personal Respect Tracker (Offense Only)</h2>
                 <div class="stat-box">
-                    <div>Total Tracked Offense Respect</div>
+                    <div>Personal Tracked Respect</div>
                     <div id="total-respect-display" class="stat-value">0.00</div>
-                    <small style="color:var(--text-muted);">Tracks non-expired respect generated from offensive attacks.</small>
+                    <small style="color:var(--text-muted);">Cumulative tracking from personal attack logs.</small>
                 </div>
                 <h3>Recent Offense Attacks</h3>
                 <div style="max-height: 200px; overflow-y: auto;">
@@ -152,7 +150,7 @@
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
-                        <tr><th>ID</th><th>Name</th><th>Level</th><th>Position</th><th>Status</th><th>Tracked Respect</th><th>API Status</th><th>Action</th></tr>
+                        <tr><th>ID</th><th>Name</th><th>Level</th><th>Position</th><th>Status</th><th>Tracked Faction Respect</th><th>API Status</th><th>Action</th></tr>
                     </thead>
                     <tbody id="roster-body"><tr><td colspan="8">Loading roster...</td></tr></tbody>
                 </table>
@@ -253,19 +251,6 @@
         }
     }
 
-    async function syncRespectToBackend(userId, respect) {
-        if (!VAL_TOWN_URL || VAL_TOWN_URL.includes("your-username-valname")) return;
-        try {
-            await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/sync-respect`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: String(userId), respect: respect })
-            });
-        } catch (err) {
-            console.warn("Respect sync notice:", err);
-        }
-    }
-
     async function loadDashboard(apiKey) {
         try {
             const keyCheck = await verifyFullAccessKey(apiKey);
@@ -322,12 +307,11 @@
                 currentFactionId = userData.faction.faction_id;
                 loadFactionRoster(currentFactionId, apiKey, isPresetAdmin);
 
-                // Set 30-minute interval to auto-refresh background roster data for everyone
                 if (!autoRefreshInterval) {
                     autoRefreshInterval = setInterval(() => {
                         console.log("30-Minute Auto Refresh Triggered");
                         loadFactionRoster(currentFactionId, apiKey, isPresetAdmin);
-                    }, 30 * 60 * 1000); // 30 minutes
+                    }, 30 * 60 * 1000);
                 }
             }
 
@@ -349,8 +333,6 @@
 
         let rows = "";
         const attackList = Object.values(attacks).reverse();
-
-        // STRICT OFFENSE FILTERING: Filter attacks initiated by user
         const offenseAttacks = attackList.filter(atk => String(atk.attacker_id) === String(userId));
 
         offenseAttacks.forEach((atk, idx) => {
@@ -378,33 +360,32 @@
 
         document.getElementById("total-respect-display").innerText = accumulatedRespect.toFixed(2);
         document.getElementById("battle-log-body").innerHTML = rows || "<tr><td colspan='3'>No recent offensive attacks found.</td></tr>";
-
-        // Sync local respect tally to global Val Town database
-        syncRespectToBackend(userId, accumulatedRespect);
     }
 
     async function loadFactionRoster(factionId, currentApiKey, isPresetAdmin) {
         try {
             let connectedKeysMap = {};
-            let sharedRespectMap = {};
+            let sharedFactionRespectMap = {};
 
             if (VAL_TOWN_URL && !VAL_TOWN_URL.includes("your-username-valname")) {
                 try {
+                    // Sync backend with latest Faction log
+                    await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/sync-faction-respect`, { method: "POST" });
+
                     const keysRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/keys`);
                     if (keysRes.ok) connectedKeysMap = await keysRes.json();
 
                     const respectRes = await fetch(`${VAL_TOWN_URL.replace(/\/$/, "")}/respect`);
-                    if (respectRes.ok) sharedRespectMap = await respectRes.json();
+                    if (respectRes.ok) sharedFactionRespectMap = await respectRes.json();
                 } catch(e) { console.warn("Backend fetch note:", e); }
             }
 
             const currentUserId = document.getElementById("user-header").innerText.match(/\[(\d+)\]/)?.[1];
             if (currentUserId) connectedKeysMap[currentUserId] = currentApiKey;
 
-            const facRes = await fetch(`https://api.torn.com/faction/${factionId}?selections=basic,contributors&key=${currentApiKey}`);
+            const facRes = await fetch(`https://api.torn.com/faction/${factionId}?selections=basic&key=${currentApiKey}`);
             const facData = await facRes.json();
             const members = facData.members || {};
-            const contributors = facData.contributors?.respect || {};
 
             let rows = "";
 
@@ -416,10 +397,9 @@
                 const memberKey = connectedKeysMap[id] || "";
                 const hasKey = Boolean(memberKey);
 
-                // Priority: Shared global backend database -> Local storage -> Torn API contributors fallback -> 0.00
-                const localResp = localStorage.getItem(`total_accumulated_respect_${id}`);
-                const trackedResp = sharedRespectMap[id] ?? localResp ?? contributors[id] ?? 0;
-                const displayRespect = parseFloat(trackedResp).toFixed(2);
+                // Public roster strictly pulls stored accumulated respect calculated via faction attack log
+                const trackedFactionResp = sharedFactionRespectMap[id] ?? 0;
+                const displayRespect = parseFloat(trackedFactionResp).toFixed(2);
 
                 rows += `
                     <tr>
@@ -469,7 +449,6 @@
         const hasMemberKey = Boolean(memberKey);
         const activeKey = hasMemberKey ? memberKey : localStorage.getItem("torn_api_key");
 
-        // Request EVERYTHING available from API
         const selections = hasMemberKey 
             ? "profile,money,bars,battlestats,personalstats,crimes,workstats,properties,events,cooldowns,travel,equipment,merits,refills,attacks" 
             : "profile,personalstats,crimes,workstats,properties";
@@ -485,24 +464,6 @@
 
             const ps = data.personalstats || {};
 
-            // ADMIN INSTANT RESPECT SYNC: Calculate & update respect during Inspection if key is available
-            if (hasMemberKey && data.attacks) {
-                let inspectedRespect = 0;
-                Object.values(data.attacks).forEach(atk => {
-                    if (String(atk.attacker_id) === String(memberId)) {
-                        inspectedRespect += parseFloat(atk.respect_gain || 0);
-                    }
-                });
-                
-                // Update live visual table text immediately
-                const liveRespEl = document.getElementById(`respect-val-${memberId}`);
-                if (liveRespEl) liveRespEl.innerText = inspectedRespect.toFixed(2);
-
-                // Push synced respect directly to backend database
-                await syncRespectToBackend(memberId, inspectedRespect);
-            }
-
-            // Cash Breakdown
             let cashDisplay = "Hidden (Key Required)", vaultDisplay = "Hidden", bankDisplay = "Hidden", totalCashDisplay = "Hidden";
             if (hasMemberKey) {
                 const cash = Number(data.money_onhand) || 0;
@@ -514,7 +475,6 @@
                 totalCashDisplay = "$" + (cash + bank + vault).toLocaleString();
             }
 
-            // Energy & Status Bars
             let energyDisplay = "Hidden", nerveDisplay = "Hidden", happyDisplay = "Hidden", lifeDisplay = "Hidden";
             if (hasMemberKey && data.energy) {
                 energyDisplay = `${data.energy.current}/${data.energy.maximum}`;
@@ -523,7 +483,6 @@
                 lifeDisplay = `${data.life?.current}/${data.life?.maximum}`;
             }
 
-            // Detailed Hospital & Medical Stats
             const inHospital = data.status?.state === "Hospital";
             const hospTimeLeft = data.status?.until ? Math.max(0, Math.ceil((data.status.until - (Date.now()/1000)) / 60)) : 0;
             const totalHospHours = ps.hospitaltime ? (ps.hospitaltime / 3600).toFixed(1) : '0';
@@ -532,7 +491,6 @@
             const medicalItemsUsed = ps.itemsused || 0;
             const bloodWithdrawn = ps.bloodwithdrawn || 0;
 
-            // Battle Stats
             let strDisplay = "Hidden", defDisplay = "Hidden", spdDisplay = "Hidden", dexDisplay = "Hidden", totalBSDisplay = "Hidden";
             if (hasMemberKey) {
                 const str = Number(data.strength ?? data.battlestats?.strength ?? 0);
@@ -548,28 +506,23 @@
                 totalBSDisplay = totalBS > 0 ? totalBS.toLocaleString() : 'N/A';
             }
 
-            // Working Stats
             const jobTitle = data.job?.position || data.job?.company_type || 'Unemployed/Unknown';
             const manualLabor = data.manual_labor ?? data.workstats?.manual_labor ?? ps.manuallabor ?? 0;
             const intelligence = data.intelligence ?? data.workstats?.intelligence ?? ps.intelligence ?? 0;
             const endurance = data.endurance ?? data.workstats?.endurance ?? ps.endurance ?? 0;
 
-            // Properties
             let propSummary = "None";
             if (data.properties && typeof data.properties === 'object') {
                 propSummary = Object.values(data.properties).map(p => p.property || p.name).join(", ") || "Standard";
             }
 
-            // Cooldowns
             const drugCd = data.cooldowns?.drug ? `${Math.ceil(data.cooldowns.drug/60)} mins` : 'None';
             const boosterCd = data.cooldowns?.booster ? `${Math.ceil(data.cooldowns.booster/60)} mins` : 'None';
             const medCd = data.cooldowns?.medical ? `${Math.ceil(data.cooldowns.medical/60)} mins` : 'None';
 
-            // Crimes & Skill
             const totalCrimes = ps.extortion || ps.offenses || ps.crimes || 0;
             const crimeSkill = data.criminalrecord ? Object.values(data.criminalrecord).reduce((a, b) => a + b, 0) : 'N/A';
 
-            // Combat Log (Offense vs Defense split)
             let attackRows = "";
             if (hasMemberKey && data.attacks) {
                 const attackList = Object.values(data.attacks).reverse().slice(0, 15);
@@ -593,7 +546,6 @@
                 attackRows = "<tr><td colspan='4' style='color:var(--text-muted)'>Combat logs hidden. Member API key not supplied.</td></tr>";
             }
 
-            // Events Log
             let eventsHtml = "No recent events recorded.";
             if (hasMemberKey && data.events) {
                 eventsHtml = Object.values(data.events).reverse().slice(0, 5).map(e => `<div>• ${e.event} <small style="color:var(--text-muted)">(${new Date(e.timestamp*1000).toLocaleTimeString()})</small></div>`).join("");
